@@ -52,14 +52,6 @@ ContextSect is a **universal token optimization framework** that works across al
 ## Install
 
 ```bash
-git clone https://github.com/BhavanPatel/ContextSect.git
-cd ContextSect
-./install.sh
-```
-
-Or via the install script:
-
-```bash
 curl -sL https://contextsect.vercel.app/install.sh | bash
 ```
 
