@@ -1,0 +1,48 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "alignment-gate",
+      "description": "Intercepts user prompts to evaluate quality and enforce alignment before expensive operations.",
+      "trigger": "UserPromptSubmit",
+      "action": {
+        "type": "agent",
+        "prompt": "ALIGNMENT GATE: Before executing, evaluate this prompt:\n1. Does it reference specific files/functions/errors?\n2. Will it modify 3+ files?\n3. Could it be interpreted 2+ ways?\n4. Uses vague verbs (improve/refactor/fix/update) without target?\n\nIF SPECIFIC: Proceed directly.\nIF VAGUE/COMPLEX: Respond with:\n**Objective:** [one sentence]\n**Path:** [2-5 steps]\n**Check:** [ONE high-impact question]\n→ Wait for 'Go' or answer.\nIF QUESTION: Answer directly.\nIF SIMPLE COMMAND: Execute directly."
+      },
+      "enabled": true
+    },
+    {
+      "name": "loop-detector",
+      "description": "Monitors for runaway execution loops.",
+      "trigger": "PreToolUse",
+      "matcher": ".*",
+      "action": {
+        "type": "agent",
+        "prompt": "LOOP CHECK: Verify: (1) not same tool+args already called, (2) not same error 3+ times, (3) this call produces NEW information. If any fail: stop, report blocker, propose alternative."
+      },
+      "enabled": true
+    },
+    {
+      "name": "search-before-read",
+      "description": "Enforces targeted search before full file reads.",
+      "trigger": "PreToolUse",
+      "matcher": "read|file_read|fs_read|cat",
+      "action": {
+        "type": "agent",
+        "prompt": "SEARCH-FIRST: Before reading this file, confirm: (1) file <50 lines, OR (2) already located target section via search, OR (3) config file needing full read, OR (4) user requested full file. If none: search first, then read targeted section."
+      },
+      "enabled": true
+    },
+    {
+      "name": "diff-only-output",
+      "description": "Enforces SEARCH/REPLACE format for modifications.",
+      "trigger": "PreToolUse",
+      "matcher": "str_replace|fs_write|write_file|file_write",
+      "action": {
+        "type": "agent",
+        "prompt": "OUTPUT FORMAT: Present changes as SEARCH/REPLACE blocks showing only changed lines with context. Never output entire files for partial changes."
+      },
+      "enabled": true
+    }
+  ]
+}
