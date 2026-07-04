@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-space-black: #050510;
+  --color-space-deep: #0a0a1a;
+  --color-space-surface: #12122a;
+  --color-cs-purple: #a78bfa;
+  --color-cs-indigo: #6366f1;
+  --color-cs-green: #10b981;
+  --color-cs-amber: #f59e0b;
+  --color-cs-red: #ef4444;
+  --color-cs-cyan: #06b6d4;
+  --color-text-primary: #f0f4ff;
+  --color-text-secondary: #b4bcd0;
+  --color-text-muted: #5a6480;
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #050510;
+  color: #f0f4ff;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: rgba(167, 139, 250, 0.2);
+  color: white;
+}
+
+::-webkit-scrollbar { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #a78bfa; border-radius: 1px; }
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-gradient-text {
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(167,139,250,0.3); }
+  50% { box-shadow: 0 0 40px rgba(167,139,250,0.6); }
+}
+
+.pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
