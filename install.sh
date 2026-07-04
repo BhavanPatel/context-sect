@@ -134,12 +134,111 @@ select_agents_manually() {
 }
 
 # ════════════════════════════════════════════════════════════════
+# Profile selection
+# ════════════════════════════════════════════════════════════════
+
+SELECTED_PROFILE=""
+
+declare -A PROFILE_DESC=(
+  ["conservative"]="Zero risk. Full exploration. Minimal constraints."
+  ["balanced"]="Recommended. Significant savings with minimal friction."
+  ["aggressive"]="Maximum savings for familiar codebases. Tight budgets."
+  ["ultra-aggressive"]="Absolute minimum tokens. Automated/repetitive tasks only."
+)
+
+declare -A PROFILE_SETTINGS=(
+  ["conservative"]="alignment-gate: disabled (no blocking)
+output-compression: lite (no filler, but full sentences)
+search-first: advisory (prefer search, allow full reads)
+loop-detection: 5 repetitions before halt
+plan-required: disabled
+investigation-budget: 10 tool calls"
+  ["balanced"]="alignment-gate: active on 3+ file changes
+output-compression: full (fragments OK, no filler, diff-only)
+search-first: enforced (search before reading files >50 lines)
+loop-detection: 3 repetitions before halt
+plan-required: 3+ file modifications
+investigation-budget: 5 tool calls"
+  ["aggressive"]="alignment-gate: active on 2+ file changes
+output-compression: ultra (maximum density)
+search-first: strict (never read full files >30 lines)
+loop-detection: 2 repetitions before halt
+plan-required: 2+ file modifications
+investigation-budget: 3 tool calls"
+  ["ultra-aggressive"]="alignment-gate: active on ALL multi-step tasks
+output-compression: ultra-max (no explanations unless asked)
+search-first: strict symbol-only (no grep, no broad reads)
+loop-detection: 1 repetition before halt
+plan-required: ALL tasks with >1 file
+investigation-budget: 2 tool calls
+session-limit: single task per session"
+)
+
+declare -A PROFILE_SAVINGS=(
+  ["conservative"]="Input: -15–25% | Output: -20–30% | Risk: Zero"
+  ["balanced"]="Input: -40–55% | Output: -50–65% | Risk: Low"
+  ["aggressive"]="Input: -60–75% | Output: -70–85% | Risk: Medium"
+  ["ultra-aggressive"]="Input: -80–90% | Output: -85–95% | Risk: High"
+)
+
+select_profile() {
+  echo -e "${CYAN}Select optimization profile:${NC}"
+  echo ""
+  echo -e "  ${GREEN}1) conservative${NC}    — ${PROFILE_DESC[conservative]}"
+  echo -e "     Savings: ${PROFILE_SAVINGS[conservative]}"
+  echo ""
+  echo -e "  ${GREEN}2) balanced${NC} ⭐     — ${PROFILE_DESC[balanced]}"
+  echo -e "     Savings: ${PROFILE_SAVINGS[balanced]}"
+  echo ""
+  echo -e "  ${GREEN}3) aggressive${NC}      — ${PROFILE_DESC[aggressive]}"
+  echo -e "     Savings: ${PROFILE_SAVINGS[aggressive]}"
+  echo ""
+  echo -e "  ${GREEN}4) ultra-aggressive${NC} — ${PROFILE_DESC[ultra-aggressive]}"
+  echo -e "     Savings: ${PROFILE_SAVINGS[ultra-aggressive]}"
+  echo ""
+  echo -e "  ${YELLOW}Recommended: balanced (best tradeoff for daily development)${NC}"
+  echo ""
+  read -rp "  Choose profile [1-4, default=2]: " choice
+
+  case "${choice:-2}" in
+    1) SELECTED_PROFILE="conservative" ;;
+    2) SELECTED_PROFILE="balanced" ;;
+    3) SELECTED_PROFILE="aggressive" ;;
+    4) SELECTED_PROFILE="ultra-aggressive" ;;
+    conservative) SELECTED_PROFILE="conservative" ;;
+    balanced) SELECTED_PROFILE="balanced" ;;
+    aggressive) SELECTED_PROFILE="aggressive" ;;
+    ultra-aggressive) SELECTED_PROFILE="ultra-aggressive" ;;
+    *) SELECTED_PROFILE="balanced" ;;
+  esac
+
+  echo ""
+  echo -e "  ${GREEN}✓${NC} Profile: ${SELECTED_PROFILE}"
+  echo ""
+}
+
+generate_profile_header() {
+  cat <<EOF
+# ContextSect — Active Profile: ${SELECTED_PROFILE}
+# Generated: $(date +%Y-%m-%d)
+# Re-run: ./install.sh --profile ${SELECTED_PROFILE}
+
+## Profile Settings
+${PROFILE_SETTINGS[$SELECTED_PROFILE]}
+
+---
+
+EOF
+}
+
+# ════════════════════════════════════════════════════════════════
 # Installation functions per agent
 # ════════════════════════════════════════════════════════════════
 
 combine_rules() {
-  # Concatenates all rule files into a single markdown block
+  # Concatenates profile header + all rule files into a single markdown block
   local output=""
+  output+="$(generate_profile_header)"
   for rule_file in "${RULES_DIR}"/*.md; do
     [[ -f "$rule_file" ]] || continue
     output+="$(cat "$rule_file")"
@@ -160,6 +259,12 @@ install_kiro() {
   echo -e "\n  ${BLUE}Installing for Kiro...${NC}"
   local target="${HOME}/.kiro"
   mkdir -p "${target}/steering" "${target}/skills" "${target}/hooks"
+
+  # Profile steering file
+  local profile_file="${target}/steering/000-profile.md"
+  backup_if_exists "$profile_file"
+  generate_profile_header > "$profile_file"
+  echo -e "    ${GREEN}✓${NC} steering/000-profile.md (${SELECTED_PROFILE})"
 
   # Steering files
   for rule_file in "${RULES_DIR}"/*.md; do
@@ -222,6 +327,20 @@ install_cursor() {
   echo -e "\n  ${BLUE}Installing for Cursor...${NC}"
   local target="${HOME}/.cursor/rules"
   mkdir -p "${target}"
+
+  # Profile file (loaded first due to 000 prefix)
+  local profile_mdc="${target}/000-profile.mdc"
+  backup_if_exists "$profile_mdc"
+  {
+    echo "---"
+    echo "description: \"ContextSect active profile: ${SELECTED_PROFILE}\""
+    echo "globs:"
+    echo "alwaysApply: true"
+    echo "---"
+    echo ""
+    generate_profile_header
+  } > "$profile_mdc"
+  echo -e "    ${GREEN}✓${NC} .cursor/rules/000-profile.mdc (${SELECTED_PROFILE})"
 
   for rule_file in "${RULES_DIR}"/*.md; do
     [[ -f "$rule_file" ]] || continue
@@ -371,12 +490,27 @@ main() {
   echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
   echo ""
 
-  # Check for --agent flag for explicit selection
-  if [[ "${1:-}" == "--agent" ]] && [[ -n "${2:-}" ]]; then
-    IFS=',' read -ra DETECTED_AGENTS <<< "$2"
-    echo -e "${CYAN}Using specified agents: ${DETECTED_AGENTS[*]}${NC}"
-    echo ""
-  else
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --agent)
+        IFS=',' read -ra DETECTED_AGENTS <<< "$2"
+        echo -e "${CYAN}Using specified agents: ${DETECTED_AGENTS[*]}${NC}"
+        shift 2
+        ;;
+      --profile)
+        SELECTED_PROFILE="$2"
+        echo -e "${CYAN}Using specified profile: ${SELECTED_PROFILE}${NC}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  # Agent detection (if not specified via flag)
+  if [[ ${#DETECTED_AGENTS[@]} -eq 0 ]]; then
     detect_agents
   fi
 
@@ -385,8 +519,16 @@ main() {
     exit 1
   fi
 
+  # Profile selection (if not specified via flag)
   echo ""
-  echo -e "${CYAN}Installing for ${#DETECTED_AGENTS[@]} agent(s)...${NC}"
+  if [[ -z "$SELECTED_PROFILE" ]]; then
+    select_profile
+  else
+    echo -e "  ${GREEN}✓${NC} Profile: ${SELECTED_PROFILE}"
+    echo ""
+  fi
+
+  echo -e "${CYAN}Installing for ${#DETECTED_AGENTS[@]} agent(s) with profile '${SELECTED_PROFILE}'...${NC}"
 
   for agent in "${DETECTED_AGENTS[@]}"; do
     case "$agent" in
@@ -408,10 +550,12 @@ main() {
   echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
   echo -e "${GREEN}  ✅ Installation complete!${NC}"
   echo ""
+  echo -e "  Profile:           ${SELECTED_PROFILE}"
   echo -e "  Agents configured: ${DETECTED_AGENTS[*]}"
   echo -e "  Rules installed:   $(ls "${RULES_DIR}"/*.md 2>/dev/null | wc -l | tr -d ' ') files"
   echo ""
-  echo -e "  ${YELLOW}Tip:${NC} Re-run anytime to update. Existing files backed up automatically."
+  echo -e "  ${YELLOW}To change profile:${NC} ./install.sh --profile aggressive"
+  echo -e "  ${YELLOW}To update rules:${NC}   git pull && ./install.sh --profile ${SELECTED_PROFILE}"
   echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 }
 

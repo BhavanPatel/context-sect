@@ -509,152 +509,81 @@ Built on evidence from peer-reviewed papers and production measurements:
 
 ---
 
-## Configuring Profiles Per Agent
+## Configuring Profiles
 
-Profiles control which rules are active and at what intensity. Here's how to configure them for each client:
+### Automatic Setup (via install.sh)
 
-### Kiro
-
-Profiles map directly to which skills and steering files are enabled in `~/.kiro/`:
+The installer handles profile configuration for **all agents** automatically:
 
 ```bash
-# Conservative: disable alignment-gate and plan-before-act
-mv ~/.kiro/skills/alignment-gate ~/.kiro/skills/_alignment-gate
-mv ~/.kiro/skills/plan-before-act ~/.kiro/skills/_plan-before-act
+# First install — interactive profile selection with examples
+./install.sh
 
-# Aggressive: all enabled (default after install)
-mv ~/.kiro/skills/_alignment-gate ~/.kiro/skills/alignment-gate
+# Set profile via flag (non-interactive, CI-friendly)
+./install.sh --profile balanced
+
+# Change profile anytime (re-runs installation with new profile)
+./install.sh --profile aggressive
+
+# Combine flags
+./install.sh --agent kiro,claude-code --profile conservative
 ```
 
-Or tell Kiro mid-session: `"switch to aggressive profile"` — the output-contract and alignment rules respond to this.
+### What You'll See on First Install
 
-### Claude Code
+```
+Select optimization profile:
 
-Edit `~/.claude/CLAUDE.md` and add a profile header at the top:
+  1) conservative    — Zero risk. Full exploration. Minimal constraints.
+     Savings: Input: -15–25% | Output: -20–30% | Risk: Zero
 
-```markdown
-# Active Profile: Balanced
+  2) balanced ⭐     — Recommended. Significant savings with minimal friction.
+     Savings: Input: -40–55% | Output: -50–65% | Risk: Low
 
-## Profile Settings
-- Alignment gate: active on 3+ file changes
-- Output: full compression (no filler, diff-only)
-- Search-first: enforced
-- Loop detection: 3 repetitions
+  3) aggressive      — Maximum savings for familiar codebases. Tight budgets.
+     Savings: Input: -60–75% | Output: -70–85% | Risk: Medium
+
+  4) ultra-aggressive — Absolute minimum tokens. Automated/repetitive tasks only.
+     Savings: Input: -80–90% | Output: -85–95% | Risk: High
+
+  Recommended: balanced (best tradeoff for daily development)
+
+  Choose profile [1-4, default=2]:
 ```
 
-For **aggressive**, change to:
-```markdown
-# Active Profile: Aggressive
+### What the Installer Does Per Agent
 
-## Profile Settings
-- Alignment gate: active on 2+ file changes
-- Output: ultra compression
-- Search-first: strict (never read >30 lines)
-- Loop detection: 2 repetitions
-```
+The selected profile is injected into each agent's config in its **native format**:
 
-Or tell Claude mid-session: `"use aggressive profile"` / `"go conservative"`.
+| Agent | Profile File Created |
+|-------|---|
+| Kiro | `~/.kiro/steering/000-profile.md` |
+| Claude Code | Profile header prepended to `~/.claude/CLAUDE.md` |
+| Cursor | `~/.cursor/rules/000-profile.mdc` (with YAML frontmatter) |
+| Windsurf | `~/.windsurf/rules/000-profile.md` |
+| Cline | `~/.clinerules/000-profile.md` |
+| RooCode | `~/.roo/rules/000-profile.md` |
+| OpenCode | Profile header in `~/opencode.md` |
+| Aider | Profile header in `~/.aider.conventions.md` |
+| GitHub Copilot | Profile header in `~/.github/copilot-instructions.md` |
+| Codex | Profile header in `~/AGENTS.md` |
 
-### Cursor
+The `000-` prefix ensures the profile loads FIRST, before any other rules.
 
-Create profile-specific `.mdc` files with `alwaysApply: true` in `.cursor/rules/`:
+### What Gets Configured Per Profile
 
-```yaml
-# .cursor/rules/000-profile.mdc
----
-description: "Active optimization profile"
-alwaysApply: true
----
+| Setting | Conservative | Balanced | Aggressive | Ultra-Aggressive |
+|---------|---|---|---|---|
+| Alignment gate | Disabled | 3+ files | 2+ files | ALL multi-step |
+| Output compression | Lite | Full | Ultra | Ultra-max |
+| Search-first | Advisory | Enforced | Strict (30 lines) | Symbol-only |
+| Loop detection | 5 reps | 3 reps | 2 reps | 1 rep |
+| Plan required | Disabled | 3+ files | 2+ files | ALL >1 file |
+| Investigation budget | 10 calls | 5 calls | 3 calls | 2 calls |
 
-# Profile: Balanced
-- Alignment gate triggers on 3+ file changes
-- Output: compressed, diff-only
-- Planning required for 3+ file modifications
-- Loop detection after 3 repetitions
-```
+### Mid-Session Profile Switching
 
-Switch profiles by editing this single file, or create multiple and toggle `alwaysApply`.
-
-### Windsurf
-
-Add a profile file to `.windsurf/rules/`:
-
-```markdown
-# .windsurf/rules/000-profile.md
-
-# Profile: Balanced
-- Alignment gate: active on 3+ file changes  
-- Output compression: full (no filler, no restatement)
-- Search-first: enforced for files >50 lines
-- Loop detection: halt after 3 repetitions
-```
-
-### Cline
-
-Add to `.clinerules/`:
-
-```markdown
-# .clinerules/000-profile.md
-
-# Profile: Balanced
-- Require alignment check for 3+ file changes
-- Compress all output (no filler, diff-only for code)
-- Search before reading files over 50 lines
-- Stop and report after 3 repeated tool failures
-```
-
-### Aider
-
-Add to your `.aider.conf.yml`:
-
-```yaml
-# Profile: Balanced
-message-format: concise    # Built-in output compression
-auto-commits: false        # Plan before committing
-map-tokens: 1024           # Limit repo-map context
-```
-
-And in `.aider.conventions.md`, add at the top:
-```markdown
-# Profile: Balanced
-Active rules: alignment-gate (3+ files), search-first, loop-breaker (3 reps), diff-only
-```
-
-### RooCode
-
-Add to `.roo/rules/`:
-
-```markdown
-# .roo/rules/000-profile.md
-
-# Profile: Balanced
-- Alignment gate: active on 3+ file tasks
-- Output: compressed, no filler, SEARCH/REPLACE format
-- Investigation mode: auto-activate on debug/why prompts
-- Loop detection: halt after 3 identical tool calls
-```
-
-### OpenCode / GitHub Copilot / Codex
-
-These use a single combined file. Add profile settings at the top:
-
-```markdown
-# Profile: Balanced
-
-## Active Settings
-- Alignment gate: 3+ file changes require confirmation
-- Output: concise (no filler, no restatement, diff-only)
-- Search-first: always search before reading full files
-- Loop detection: stop after 3 identical failures
-- Plan: required for 3+ file modifications
-
----
-[rest of rules below]
-```
-
-### Profile Quick-Switch (All Agents)
-
-You can always tell any agent mid-conversation:
+You can also tell any agent mid-conversation:
 
 | Command | Effect |
 |---------|--------|
@@ -663,8 +592,6 @@ You can always tell any agent mid-conversation:
 | `"go aggressive"` | Tight constraints, familiar code only |
 | `"ultra mode"` | Maximum savings, well-defined tasks only |
 | `"skip alignment"` / `"just do it"` | Bypass alignment gate for current task |
-
-These work because all rules include response-to-user-intent logic — the agent reads the profile instruction and adjusts behavior accordingly.
 
 ---
 
@@ -693,14 +620,20 @@ The universal rules in `rules/` don't need to change — only the installation a
 ## Quick Reference
 
 ```bash
-# Auto-detect and install
+# Auto-detect and install (interactive profile selection)
 ./install.sh
 
-# Install for specific agents only
-./install.sh --agent kiro,claude-code,cursor
+# Install with specific profile (non-interactive)
+./install.sh --profile balanced
+
+# Install for specific agents with profile
+./install.sh --agent kiro,claude-code,cursor --profile aggressive
+
+# Change profile (re-installs with new settings)
+./install.sh --profile conservative
 
 # Update after pulling new rules
-git pull && ./install.sh
+git pull && ./install.sh --profile balanced
 ```
 
 ---
