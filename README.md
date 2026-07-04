@@ -4,11 +4,20 @@
 </p>
 
 <p align="center">
+  <a href="https://contextsect.vercel.app"><img src="https://img.shields.io/badge/website-contextsect.vercel.app-a78bfa?style=flat-square" alt="Website" /></a>
   <a href="#install"><img src="https://img.shields.io/badge/version-1.0.0-a78bfa?style=flat-square" alt="Version" /></a>
   <a href="#supported-agents"><img src="https://img.shields.io/badge/agents-10_supported-10b981?style=flat-square" alt="Agents" /></a>
-  <a href="#rules"><img src="https://img.shields.io/badge/rules-7_modules-f59e0b?style=flat-square" alt="Rules" /></a>
+  <a href="#rules"><img src="https://img.shields.io/badge/rules-8_modules-f59e0b?style=flat-square" alt="Rules" /></a>
   <a href="#results"><img src="https://img.shields.io/badge/savings-45--60%25_tokens-ef4444?style=flat-square" alt="Savings" /></a>
   <a href="#research-basis"><img src="https://img.shields.io/badge/research-17_papers-3b82f6?style=flat-square" alt="Research" /></a>
+</p>
+
+<p align="center">
+  <a href="https://contextsect.vercel.app"><strong>Website</strong></a> ·
+  <a href="docs/01-research-summary.md"><strong>Research</strong></a> · 
+  <a href="docs/03-skill-library.md"><strong>Skills</strong></a> · 
+  <a href="docs/04-configuration-profiles.md"><strong>Profiles</strong></a> · 
+  <a href="docs/06-final-recommendation.md"><strong>Recommendation</strong></a>
 </p>
 
 ---
@@ -46,6 +55,12 @@ ContextSect is a **universal token optimization framework** that works across al
 git clone https://github.com/BhavanPatel/ContextSect.git
 cd ContextSect
 ./install.sh
+```
+
+Or via the install script:
+
+```bash
+curl -sL https://contextsect.vercel.app/install.sh | bash
 ```
 
 The script **auto-detects** which agents you have installed and configures each one in its native format.
