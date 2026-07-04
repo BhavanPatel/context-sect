@@ -509,6 +509,165 @@ Built on evidence from peer-reviewed papers and production measurements:
 
 ---
 
+## Configuring Profiles Per Agent
+
+Profiles control which rules are active and at what intensity. Here's how to configure them for each client:
+
+### Kiro
+
+Profiles map directly to which skills and steering files are enabled in `~/.kiro/`:
+
+```bash
+# Conservative: disable alignment-gate and plan-before-act
+mv ~/.kiro/skills/alignment-gate ~/.kiro/skills/_alignment-gate
+mv ~/.kiro/skills/plan-before-act ~/.kiro/skills/_plan-before-act
+
+# Aggressive: all enabled (default after install)
+mv ~/.kiro/skills/_alignment-gate ~/.kiro/skills/alignment-gate
+```
+
+Or tell Kiro mid-session: `"switch to aggressive profile"` — the output-contract and alignment rules respond to this.
+
+### Claude Code
+
+Edit `~/.claude/CLAUDE.md` and add a profile header at the top:
+
+```markdown
+# Active Profile: Balanced
+
+## Profile Settings
+- Alignment gate: active on 3+ file changes
+- Output: full compression (no filler, diff-only)
+- Search-first: enforced
+- Loop detection: 3 repetitions
+```
+
+For **aggressive**, change to:
+```markdown
+# Active Profile: Aggressive
+
+## Profile Settings
+- Alignment gate: active on 2+ file changes
+- Output: ultra compression
+- Search-first: strict (never read >30 lines)
+- Loop detection: 2 repetitions
+```
+
+Or tell Claude mid-session: `"use aggressive profile"` / `"go conservative"`.
+
+### Cursor
+
+Create profile-specific `.mdc` files with `alwaysApply: true` in `.cursor/rules/`:
+
+```yaml
+# .cursor/rules/000-profile.mdc
+---
+description: "Active optimization profile"
+alwaysApply: true
+---
+
+# Profile: Balanced
+- Alignment gate triggers on 3+ file changes
+- Output: compressed, diff-only
+- Planning required for 3+ file modifications
+- Loop detection after 3 repetitions
+```
+
+Switch profiles by editing this single file, or create multiple and toggle `alwaysApply`.
+
+### Windsurf
+
+Add a profile file to `.windsurf/rules/`:
+
+```markdown
+# .windsurf/rules/000-profile.md
+
+# Profile: Balanced
+- Alignment gate: active on 3+ file changes  
+- Output compression: full (no filler, no restatement)
+- Search-first: enforced for files >50 lines
+- Loop detection: halt after 3 repetitions
+```
+
+### Cline
+
+Add to `.clinerules/`:
+
+```markdown
+# .clinerules/000-profile.md
+
+# Profile: Balanced
+- Require alignment check for 3+ file changes
+- Compress all output (no filler, diff-only for code)
+- Search before reading files over 50 lines
+- Stop and report after 3 repeated tool failures
+```
+
+### Aider
+
+Add to your `.aider.conf.yml`:
+
+```yaml
+# Profile: Balanced
+message-format: concise    # Built-in output compression
+auto-commits: false        # Plan before committing
+map-tokens: 1024           # Limit repo-map context
+```
+
+And in `.aider.conventions.md`, add at the top:
+```markdown
+# Profile: Balanced
+Active rules: alignment-gate (3+ files), search-first, loop-breaker (3 reps), diff-only
+```
+
+### RooCode
+
+Add to `.roo/rules/`:
+
+```markdown
+# .roo/rules/000-profile.md
+
+# Profile: Balanced
+- Alignment gate: active on 3+ file tasks
+- Output: compressed, no filler, SEARCH/REPLACE format
+- Investigation mode: auto-activate on debug/why prompts
+- Loop detection: halt after 3 identical tool calls
+```
+
+### OpenCode / GitHub Copilot / Codex
+
+These use a single combined file. Add profile settings at the top:
+
+```markdown
+# Profile: Balanced
+
+## Active Settings
+- Alignment gate: 3+ file changes require confirmation
+- Output: concise (no filler, no restatement, diff-only)
+- Search-first: always search before reading full files
+- Loop detection: stop after 3 identical failures
+- Plan: required for 3+ file modifications
+
+---
+[rest of rules below]
+```
+
+### Profile Quick-Switch (All Agents)
+
+You can always tell any agent mid-conversation:
+
+| Command | Effect |
+|---------|--------|
+| `"use conservative mode"` | Full exploration, minimal constraints |
+| `"use balanced mode"` | Standard optimization (recommended) |
+| `"go aggressive"` | Tight constraints, familiar code only |
+| `"ultra mode"` | Maximum savings, well-defined tasks only |
+| `"skip alignment"` / `"just do it"` | Bypass alignment gate for current task |
+
+These work because all rules include response-to-user-intent logic — the agent reads the profile instruction and adjusts behavior accordingly.
+
+---
+
 ## Updating
 
 ```bash
