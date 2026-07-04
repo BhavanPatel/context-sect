@@ -9,7 +9,7 @@ export default function Hero() {
         initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-        className="text-[5rem] md:text-[10rem] lg:text-[14rem] leading-none tracking-[-0.06em] select-none animated-gradient-text"
+        className="text-[3rem] md:text-[6rem] lg:text-[8rem] leading-none tracking-[-0.04em] select-none animated-gradient-text"
         style={{
           fontWeight: 900,
           WebkitBackgroundClip: 'text',
