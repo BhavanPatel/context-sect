@@ -216,7 +216,8 @@ The same rule (`rules/output-contract.md`) becomes:
 
 | Rule | Purpose | Input Savings | Output Savings |
 |------|---------|:---:|:---:|
-| **output-contract** | Zero filler, diff-only, no narration | — | -40–65% |
+| **output-contract** | Zero filler, no narration, explain only when asked | — | -40–65% |
+| **diff-only** | SEARCH/REPLACE format, never full files | — | -60–90% code |
 | **alignment-gate** | Clarify before complex tasks | -50–70% rework | -50–70% rework |
 | **search-first** | Targeted search before file reads | -40–80% | -20–30% |
 | **loop-breaker** | Halt stuck execution patterns | ∞ prevention | ∞ prevention |
@@ -335,7 +336,8 @@ WITH search-first:
 ```
 ContextSect/
 ├── rules/                          # Universal rules (agent-agnostic markdown)
-│   ├── output-contract.md          # Zero filler, diff-only, no narration
+│   ├── output-contract.md          # Zero filler, explain only when asked
+│   ├── diff-only.md                # SEARCH/REPLACE, never full files
 │   ├── alignment-gate.md           # Clarify before complex tasks
 │   ├── search-first.md             # Targeted search before reads
 │   ├── loop-breaker.md             # Halt stuck patterns
@@ -345,6 +347,10 @@ ContextSect/
 ├── adapters/                       # Agent-specific transformations
 │   └── kiro-hooks.json             # Kiro v3 hooks (only agent needing hooks)
 ├── docs/                           # Reference documentation
+│   ├── 01-research-summary.md      # 17 findings with full citations
+│   ├── 03-skill-library.md         # Complete rule specs + compatibility matrix
+│   ├── 04-configuration-profiles.md # 4 profiles with YAML + risk analysis
+│   └── 06-final-recommendation.md  # Production deployment guide
 ├── install.sh                      # Auto-detect + install for all agents
 └── README.md
 ```
@@ -377,6 +383,112 @@ alwaysApply: true
 - Rules → `.kiro/steering/*.md` (always loaded)
 - Rules → `.kiro/skills/*/SKILL.md` (with frontmatter for routing)
 - Hooks → `.kiro/hooks/token-optimization.json` (triggers on UserPromptSubmit, PreToolUse)
+
+---
+
+## Configuration Profiles
+
+4 pre-configured intensity levels — works with any agent:
+
+| Profile | Input ↓ | Output ↓ | Risk | Best For |
+|---------|:-------:|:--------:|:----:|----------|
+| **Conservative** | 15–25% | 20–30% | Zero | Learning, prototyping, unfamiliar codebases |
+| **Balanced** ⭐ | 40–55% | 50–65% | Low | Daily development (recommended default) |
+| **Aggressive** | 60–75% | 70–85% | Medium | Cost-sensitive, familiar codebases |
+| **Ultra-Aggressive** | 80–90% | 85–95% | High | Automated agents, bulk operations |
+
+### How to Choose
+
+```mermaid
+flowchart TD
+    Q1{Familiar codebase?}
+    Q1 -->|No| CON[Conservative]
+    Q1 -->|Yes| Q2{What type of work?}
+    Q2 -->|Creative/exploratory| BAL[Balanced]
+    Q2 -->|Well-defined tasks| AGG[Aggressive]
+    Q2 -->|Automated/bulk ops| ULT[Ultra-Aggressive]
+
+    style CON fill:#1a4d2e,stroke:#10b981,color:#fff
+    style BAL fill:#0d3b66,stroke:#a78bfa,color:#fff,stroke-width:3px
+    style AGG fill:#4d3b1a,stroke:#f59e0b,color:#fff
+    style ULT fill:#4d1a1a,stroke:#ef4444,color:#fff
+```
+
+See [docs/04-configuration-profiles.md](docs/04-configuration-profiles.md) for full YAML configs and risk analysis.
+
+---
+
+## Progressive Context Loading
+
+One of the most powerful techniques — load context in tiers, never all at once:
+
+```mermaid
+flowchart TD
+    T0["Tier 0: Structure<br/>Directory listing, config files<br/>~200 tokens"] --> D0{Enough?}
+    D0 -->|Yes| DONE[Proceed]
+    D0 -->|No| T1["Tier 1: Target Files<br/>Files from user prompt<br/>~500-2000 tokens"]
+    T1 --> D1{Enough?}
+    D1 -->|Yes| DONE
+    D1 -->|No| T2["Tier 2: Direct Dependencies<br/>Imports, interfaces<br/>~1000-3000 tokens"]
+    T2 --> D2{Enough?}
+    D2 -->|Yes| DONE
+    D2 -->|No| T3["Tier 3: Transitive<br/>Only if T2 insufficient<br/>~2000-5000 tokens"]
+    T3 --> DONE
+
+    style T0 fill:#1a4d2e,stroke:#10b981,color:#fff
+    style T1 fill:#2d4d2e,stroke:#10b981,color:#fff
+    style T2 fill:#3d4d2e,stroke:#f59e0b,color:#fff
+    style T3 fill:#4d3b2e,stroke:#ef4444,color:#fff
+    style DONE fill:#0d3b66,stroke:#a78bfa,color:#fff
+```
+
+**Why:** The "Lost in the Middle" paper shows models pay most attention to beginning and end of context. Loading everything fills the middle with noise that DEGRADES quality. Less context = better reasoning.
+
+---
+
+## Implementation Priority
+
+### Week 1 — Immediate, Zero Risk
+| Rule | Impact |
+|------|--------|
+| `output-contract` | -40–65% output tokens instantly |
+| `diff-only` | -60–90% code output tokens |
+| `alignment-gate` | Prevents wrong-direction waste |
+
+### Week 2 — After Validating
+| Rule | Validates |
+|------|-----------|
+| `search-first` | File read patterns improve |
+| `loop-breaker` | Stuck patterns caught |
+| `plan-before-act` | Multi-file alignment |
+
+### Week 3+ — Tune Thresholds
+- If alignment gate fires too often (>50%): raise file-count threshold
+- If loop-breaker false-positives: raise repetition threshold
+- If sessions still bloat: enable `context-hygiene` strictly
+
+---
+
+## What NOT to Do
+
+| Anti-Pattern | Why It Fails | Evidence |
+|---|---|---|
+| **Ultra-compressed abbreviations** (cfg/impl/req/fn) | Tokenizer splits to same count as full words. Zero savings, lost readability. | Caveman repo tokenizer analysis |
+| **Hard file-read limits** (max 3 files) | Agent misses dependencies → wrong code → retry costs more | AgentDiet research |
+| **Forced single-task sessions** | Session overhead = 3,000–5,000 tokens. Repeated per task. | Kiro/Claude session architecture |
+| **Compressing security warnings** | Misunderstood destructive confirmations → data loss | GitHub incident docs |
+| **Loading all rules simultaneously** | Each rule = 300–400 tokens. 20 rules = 8,000 tokens competing for attention | SkillReducer: attention dilution |
+
+---
+
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [**Research Summary**](docs/01-research-summary.md) | 17 evidence-backed findings with sources, classification, and measured impact |
+| [**Rule Library**](docs/03-skill-library.md) | Complete specs for all rules: rationale, risks, activation, compatibility matrix |
+| [**Configuration Profiles**](docs/04-configuration-profiles.md) | 4 profiles with YAML configs, risk assessments, decision flowchart |
+| [**Final Recommendation**](docs/06-final-recommendation.md) | Always-on vs task-specific, what to avoid, optimal defaults |
 
 ---
 
