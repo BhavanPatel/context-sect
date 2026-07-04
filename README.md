@@ -451,28 +451,7 @@ flowchart TD
 
 **Why:** The "Lost in the Middle" paper shows models pay most attention to beginning and end of context. Loading everything fills the middle with noise that DEGRADES quality. Less context = better reasoning.
 
----
 
-## Implementation Priority
-
-### Week 1 — Immediate, Zero Risk
-| Rule | Impact |
-|------|--------|
-| `output-contract` | -40–65% output tokens instantly |
-| `diff-only` | -60–90% code output tokens |
-| `alignment-gate` | Prevents wrong-direction waste |
-
-### Week 2 — After Validating
-| Rule | Validates |
-|------|-----------|
-| `search-first` | File read patterns improve |
-| `loop-breaker` | Stuck patterns caught |
-| `plan-before-act` | Multi-file alignment |
-
-### Week 3+ — Tune Thresholds
-- If alignment gate fires too often (>50%): raise file-count threshold
-- If loop-breaker false-positives: raise repetition threshold
-- If sessions still bloat: enable `context-hygiene` strictly
 
 ---
 
@@ -610,17 +589,6 @@ git pull
 ./install.sh    # Re-installs with latest rules (backs up existing files)
 ```
 
----
-
-## Adding New Agents
-
-To add support for a new agent:
-
-1. Add detection logic in `detect_agents()` function
-2. Create `install_<agent>()` function implementing the agent's config format
-3. Add to the `main()` case statement
-
-The universal rules in `rules/` don't need to change — only the installation adapter.
 
 ---
 
