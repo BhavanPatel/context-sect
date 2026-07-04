@@ -43,7 +43,7 @@ ContextSect is a **universal token optimization framework** that works across al
 ## Install
 
 ```bash
-git clone git@git.entaingroup.com:bhavanpatel/ai/setup/gh/ContextSect.git
+git clone https://github.com/BhavanPatel/ContextSect.git
 cd ContextSect
 ./install.sh
 ```
@@ -437,8 +437,7 @@ git pull && ./install.sh
 ## Author
 
 <p>
-  <a href="https://git.entaingroup.com/bhavanpatel"><strong>Bhavan Patel</strong></a><br/>
-  P&T Engineering CoE · Entain Group
+  <a href="https://github.com/BhavanPatel"><strong>Bhavan Patel</strong></a>
 </p>
 
 ## License

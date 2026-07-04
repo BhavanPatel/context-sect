@@ -211,7 +211,7 @@ install_claude_code() {
     echo "# Token Optimization Rules"
     echo ""
     echo "These rules are loaded automatically by Claude Code at session start."
-    echo "Source: ContextSect framework (https://git.entaingroup.com/bhavanpatel/ai/setup/gh/ContextSect)"
+    echo "Source: ContextSect framework (https://github.com/BhavanPatel/ContextSect)"
     echo ""
     combine_rules
   } > "$claude_md"
