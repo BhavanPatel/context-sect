@@ -109,7 +109,7 @@ select_agents_manually() {
   echo " 10) OpenAI Codex"
   echo "  a) All"
   echo ""
-  read -rp "Select agents (comma-separated numbers, or 'a' for all): " selection
+  read -rp "Select agents (comma-separated numbers, or 'a' for all): " selection </dev/tty
 
   if [[ "$selection" == "a" ]]; then
     DETECTED_AGENTS=("kiro" "claude-code" "cursor" "windsurf" "cline" "opencode" "aider" "roocode" "github-copilot" "codex")
@@ -216,7 +216,7 @@ select_profile() {
   echo ""
   echo -e "  ${YELLOW}Recommended: balanced (best tradeoff for daily development)${NC}"
   echo ""
-  read -rp "  Choose profile [1-4, default=2]: " choice
+  read -rp "  Choose profile [1-4, default=2]: " choice </dev/tty
 
   case "${choice:-2}" in
     1) SELECTED_PROFILE="conservative" ;;
