@@ -574,8 +574,10 @@ main() {
   echo -e "  Agents configured: ${DETECTED_AGENTS[*]}"
   echo -e "  Rules installed:   $(ls "${RULES_DIR}"/*.md 2>/dev/null | wc -l | tr -d ' ') files"
   echo ""
-  echo -e "  ${YELLOW}To change profile:${NC} ./install.sh --profile aggressive"
-  echo -e "  ${YELLOW}To update rules:${NC}   git pull && ./install.sh --profile ${SELECTED_PROFILE}"
+  echo -e "  ${YELLOW}Change profile:${NC}  contextsect profile aggressive"
+  echo -e "  ${YELLOW}Update rules:${NC}    contextsect update"
+  echo -e "  ${YELLOW}Disable/enable:${NC}  contextsect disable | contextsect enable"
+  echo -e "  ${YELLOW}Check status:${NC}    contextsect status"
   echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 }
 
