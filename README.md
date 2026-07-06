@@ -49,6 +49,8 @@ Combined with the 5x output token cost multiplier, this yields **45–60% total 
 | First-attempt success | ~60% | **~85%** |
 | Runaway loops | Occasional | **Near zero** |
 
+> *Measured: 78% output reduction, 0% filler across 8 Kiro sessions (116 messages). See [benchmarks](docs/benchmarks.md) for methodology, raw data, and how to reproduce.*
+
 ---
 
 ## Install
@@ -57,11 +59,22 @@ Combined with the 5x output token cost multiplier, this yields **45–60% total 
 curl -sL https://contextsect.vercel.app/install.sh | bash
 ```
 
-Auto-detects installed agents, selects a profile, and configures everything in native format. That's it.
+Auto-detects installed agents, selects a profile, configures everything in native format, and installs the `contextsect` CLI globally.
 
 ```bash
 # Or explicit
 ./install.sh --agent kiro,claude-code,cursor --profile balanced
+```
+
+### CLI
+
+After install, use from anywhere:
+
+```bash
+contextsect update              # Pull latest rules + reinstall
+contextsect profile aggressive  # Switch profile
+contextsect status              # Show what's configured
+contextsect uninstall           # Remove all rules
 ```
 
 ---
@@ -91,6 +104,7 @@ Your agents see **8 rules** that prevent token waste at every stage — from pro
 | <a href="docs/adaptation.md"><img src="https://img.shields.io/badge/Adaptation-a78bfa?style=flat-square&logo=convertio&logoColor=white" alt="Adaptation"></a> | [How rules transform per agent, adding new agents](docs/adaptation.md) |
 | <a href="docs/examples.md"><img src="https://img.shields.io/badge/Examples-a78bfa?style=flat-square&logo=readthedocs&logoColor=white" alt="Examples"></a> | [Before/after comparisons showing token savings](docs/examples.md) |
 | <a href="docs/research.md"><img src="https://img.shields.io/badge/Research-a78bfa?style=flat-square&logo=googlescholar&logoColor=white" alt="Research"></a> | [12 papers and production measurements backing every decision](docs/research.md) |
+| <a href="docs/benchmarks.md"><img src="https://img.shields.io/badge/Benchmarks-a78bfa?style=flat-square&logo=speedtest&logoColor=white" alt="Benchmarks"></a> | [Reproducible methodology, comparison with 14 alternatives, honest caveats](docs/benchmarks.md) |
 
 ---
 

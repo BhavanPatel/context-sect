@@ -1,0 +1,436 @@
+#!/usr/bin/env bash
+# contextsect — CLI for ContextSect token optimization framework
+# Installed to: /usr/local/bin/contextsect (or ~/.local/bin/contextsect)
+set -eo pipefail
+
+INSTALL_DIR="${HOME}/.contextsect"
+VERSION="1.0.0"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+usage() {
+  echo ""
+  echo -e "  ${CYAN}contextsect${NC} — Agent-agnostic token optimization"
+  echo ""
+  echo "  Usage: contextsect <command> [options]"
+  echo ""
+  echo "  Commands:"
+  echo "    install          Install/reinstall rules for detected agents"
+  echo "    update           Pull latest rules and reinstall"
+  echo "    profile <name>   Switch profile (conservative|balanced|aggressive|ultra-aggressive)"
+  echo "    status           Show current installation status"
+  echo "    disable          Temporarily disable all rules (keeps files, renames them)"
+  echo "    enable           Re-enable previously disabled rules"
+  echo "    uninstall        Remove all ContextSect rules from agents"
+  echo "    version          Show version"
+  echo "    help             Show this help"
+  echo ""
+  echo "  Options:"
+  echo "    --agent <list>   Comma-separated agents (kiro,claude-code,cursor,...)"
+  echo "    --profile <name> Set profile during install"
+  echo ""
+  echo "  Examples:"
+  echo "    contextsect install                    # Auto-detect + interactive"
+  echo "    contextsect install --profile balanced # Non-interactive"
+  echo "    contextsect update                     # Pull latest + reinstall"
+  echo "    contextsect profile aggressive         # Switch profile"
+  echo "    contextsect status                     # Show what's installed"
+  echo ""
+}
+
+check_installed() {
+  if [[ ! -d "$INSTALL_DIR" ]]; then
+    echo -e "  ${RED}✗${NC} ContextSect not installed. Run:"
+    echo "    curl -sL https://contextsect.vercel.app/install.sh | bash"
+    exit 1
+  fi
+}
+
+cmd_install() {
+  check_installed
+  cd "$INSTALL_DIR"
+  exec bash ./install.sh "$@"
+}
+
+cmd_update() {
+  check_installed
+  echo -e "  ${CYAN}Updating ContextSect...${NC}"
+
+  cd "$INSTALL_DIR"
+  local before
+  before=$(git rev-parse HEAD)
+  git pull --quiet
+
+  local after
+  after=$(git rev-parse HEAD)
+
+  if [[ "$before" == "$after" ]]; then
+    echo -e "  ${GREEN}✓${NC} Already up to date."
+  else
+    local count
+    count=$(git log --oneline "$before".."$after" | wc -l | tr -d ' ')
+    echo -e "  ${GREEN}✓${NC} Updated (${count} new commits)"
+    echo ""
+    git log --oneline "$before".."$after" | head -5 | sed 's/^/    /'
+  fi
+
+  echo ""
+  echo -e "  Reinstalling rules..."
+  echo ""
+
+  # Detect current profile from existing steering file
+  local current_profile=""
+  if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
+    current_profile=$(grep "Active Profile:" "${HOME}/.kiro/steering/000-profile.md" 2>/dev/null | sed 's/.*Active Profile: //')
+  elif [[ -f "${HOME}/.claude/CLAUDE.md" ]]; then
+    current_profile=$(grep "Active Profile:" "${HOME}/.claude/CLAUDE.md" 2>/dev/null | sed 's/.*Active Profile: //')
+  elif [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]]; then
+    current_profile=$(grep "Active Profile:" "${HOME}/.cursor/rules/000-profile.mdc" 2>/dev/null | sed 's/.*Active Profile: //')
+  fi
+
+  if [[ -n "$current_profile" ]]; then
+    exec bash ./install.sh --profile "$current_profile" "$@"
+  else
+    exec bash ./install.sh "$@"
+  fi
+}
+
+cmd_profile() {
+  local profile="$1"
+  if [[ -z "$profile" ]]; then
+    echo -e "  ${RED}✗${NC} Specify a profile: conservative, balanced, aggressive, ultra-aggressive"
+    exit 1
+  fi
+
+  case "$profile" in
+    conservative|balanced|aggressive|ultra-aggressive) ;;
+    *)
+      echo -e "  ${RED}✗${NC} Invalid profile: $profile"
+      echo "    Valid: conservative, balanced, aggressive, ultra-aggressive"
+      exit 1
+      ;;
+  esac
+
+  check_installed
+  cd "$INSTALL_DIR"
+  exec bash ./install.sh --profile "$profile"
+}
+
+cmd_status() {
+  echo ""
+  echo -e "  ${CYAN}ContextSect Status${NC}"
+  echo ""
+
+  # Installation
+  if [[ -d "$INSTALL_DIR" ]]; then
+    echo -e "  ${GREEN}✓${NC} Installed at: ${INSTALL_DIR}"
+    local commit
+    commit=$(cd "$INSTALL_DIR" && git log --oneline -1 2>/dev/null || echo "unknown")
+    echo -e "    Version: ${commit}"
+  else
+    echo -e "  ${RED}✗${NC} Not installed"
+    return
+  fi
+
+  echo ""
+
+  # Check if disabled
+  if [[ -f "${INSTALL_DIR}/.disabled" ]]; then
+    echo -e "  State:   ${YELLOW}DISABLED${NC} (run ${CYAN}contextsect enable${NC} to restore)"
+  else
+    echo -e "  State:   ${GREEN}ACTIVE${NC}"
+  fi
+
+  # Detect current profile
+  local profile="unknown"
+  if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
+    profile=$(grep "Active Profile:" "${HOME}/.kiro/steering/000-profile.md" 2>/dev/null | sed 's/.*Active Profile: //')
+  elif [[ -f "${HOME}/.claude/CLAUDE.md" ]]; then
+    profile=$(grep "Active Profile:" "${HOME}/.claude/CLAUDE.md" 2>/dev/null | sed 's/.*Active Profile: //')
+  fi
+  echo -e "  Profile: ${GREEN}${profile}${NC}"
+  echo ""
+
+  # Check which agents have rules installed
+  echo "  Agents configured:"
+  [[ -f "${HOME}/.kiro/steering/000-profile.md" ]] && echo -e "    ${GREEN}✓${NC} Kiro"
+  [[ -f "${HOME}/.claude/CLAUDE.md" ]] && grep -q "ContextSect" "${HOME}/.claude/CLAUDE.md" 2>/dev/null && echo -e "    ${GREEN}✓${NC} Claude Code"
+  [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]] && echo -e "    ${GREEN}✓${NC} Cursor"
+  [[ -d "${HOME}/.windsurf/rules" ]] && ls "${HOME}/.windsurf/rules/"*context* &>/dev/null 2>&1 && echo -e "    ${GREEN}✓${NC} Windsurf"
+  [[ -d "${HOME}/.clinerules" ]] && ls "${HOME}/.clinerules/"*context* &>/dev/null 2>&1 && echo -e "    ${GREEN}✓${NC} Cline"
+  [[ -d "${HOME}/.roo/rules" ]] && ls "${HOME}/.roo/rules/"*context* &>/dev/null 2>&1 && echo -e "    ${GREEN}✓${NC} RooCode"
+  [[ -f "${HOME}/opencode.md" ]] && grep -q "ContextSect" "${HOME}/opencode.md" 2>/dev/null && echo -e "    ${GREEN}✓${NC} OpenCode"
+  [[ -f "${HOME}/.aider.conventions.md" ]] && grep -q "ContextSect" "${HOME}/.aider.conventions.md" 2>/dev/null && echo -e "    ${GREEN}✓${NC} Aider"
+  [[ -f "${HOME}/.github/copilot-instructions.md" ]] && grep -q "ContextSect" "${HOME}/.github/copilot-instructions.md" 2>/dev/null && echo -e "    ${GREEN}✓${NC} GitHub Copilot"
+  [[ -f "${HOME}/AGENTS.md" ]] && grep -q "ContextSect" "${HOME}/AGENTS.md" 2>/dev/null && echo -e "    ${GREEN}✓${NC} OpenAI Codex"
+
+  echo ""
+}
+
+cmd_uninstall() {
+  echo -e "  ${YELLOW}This will remove ContextSect rules from all agents.${NC}"
+  read -rp "  Continue? [y/N]: " confirm </dev/tty
+
+  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "  Cancelled."
+    exit 0
+  fi
+
+  echo ""
+
+  # Remove Kiro rules
+  if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
+    rm -f "${HOME}/.kiro/steering/000-profile.md"
+    rm -f "${HOME}/.kiro/steering/alignment-gate.md"
+    rm -f "${HOME}/.kiro/steering/context-hygiene.md"
+    rm -f "${HOME}/.kiro/steering/diff-only.md"
+    rm -f "${HOME}/.kiro/steering/investigation-mode.md"
+    rm -f "${HOME}/.kiro/steering/loop-breaker.md"
+    rm -f "${HOME}/.kiro/steering/output-contract.md"
+    rm -f "${HOME}/.kiro/steering/plan-before-act.md"
+    rm -f "${HOME}/.kiro/steering/search-first.md"
+    rm -rf "${HOME}/.kiro/skills/alignment-gate"
+    rm -rf "${HOME}/.kiro/skills/context-hygiene"
+    rm -rf "${HOME}/.kiro/skills/diff-only"
+    rm -rf "${HOME}/.kiro/skills/investigation-mode"
+    rm -rf "${HOME}/.kiro/skills/loop-breaker"
+    rm -rf "${HOME}/.kiro/skills/output-contract"
+    rm -rf "${HOME}/.kiro/skills/plan-before-act"
+    rm -rf "${HOME}/.kiro/skills/search-first"
+    rm -f "${HOME}/.kiro/hooks/token-optimization.json"
+    echo -e "  ${GREEN}✓${NC} Removed Kiro rules"
+  fi
+
+  # Remove Claude Code
+  if [[ -f "${HOME}/.claude/CLAUDE.md" ]] && grep -q "ContextSect" "${HOME}/.claude/CLAUDE.md" 2>/dev/null; then
+    rm -f "${HOME}/.claude/CLAUDE.md"
+    echo -e "  ${GREEN}✓${NC} Removed Claude Code rules"
+  fi
+
+  # Remove Cursor
+  if [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]]; then
+    rm -f "${HOME}/.cursor/rules/000-profile.mdc"
+    rm -f "${HOME}/.cursor/rules/"9*.mdc
+    echo -e "  ${GREEN}✓${NC} Removed Cursor rules"
+  fi
+
+  # Remove Windsurf
+  if [[ -d "${HOME}/.windsurf/rules" ]]; then
+    rm -f "${HOME}/.windsurf/rules/alignment-gate.md"
+    rm -f "${HOME}/.windsurf/rules/context-hygiene.md"
+    rm -f "${HOME}/.windsurf/rules/diff-only.md"
+    rm -f "${HOME}/.windsurf/rules/investigation-mode.md"
+    rm -f "${HOME}/.windsurf/rules/loop-breaker.md"
+    rm -f "${HOME}/.windsurf/rules/output-contract.md"
+    rm -f "${HOME}/.windsurf/rules/plan-before-act.md"
+    rm -f "${HOME}/.windsurf/rules/search-first.md"
+    echo -e "  ${GREEN}✓${NC} Removed Windsurf rules"
+  fi
+
+  # Remove Cline
+  if [[ -d "${HOME}/.clinerules" ]]; then
+    rm -f "${HOME}/.clinerules/alignment-gate.md"
+    rm -f "${HOME}/.clinerules/context-hygiene.md"
+    rm -f "${HOME}/.clinerules/diff-only.md"
+    rm -f "${HOME}/.clinerules/investigation-mode.md"
+    rm -f "${HOME}/.clinerules/loop-breaker.md"
+    rm -f "${HOME}/.clinerules/output-contract.md"
+    rm -f "${HOME}/.clinerules/plan-before-act.md"
+    rm -f "${HOME}/.clinerules/search-first.md"
+    echo -e "  ${GREEN}✓${NC} Removed Cline rules"
+  fi
+
+  # Remove RooCode
+  if [[ -d "${HOME}/.roo/rules" ]]; then
+    rm -f "${HOME}/.roo/rules/alignment-gate.md"
+    rm -f "${HOME}/.roo/rules/context-hygiene.md"
+    rm -f "${HOME}/.roo/rules/diff-only.md"
+    rm -f "${HOME}/.roo/rules/investigation-mode.md"
+    rm -f "${HOME}/.roo/rules/loop-breaker.md"
+    rm -f "${HOME}/.roo/rules/output-contract.md"
+    rm -f "${HOME}/.roo/rules/plan-before-act.md"
+    rm -f "${HOME}/.roo/rules/search-first.md"
+    echo -e "  ${GREEN}✓${NC} Removed RooCode rules"
+  fi
+
+  # Remove others (only if they contain ContextSect marker)
+  [[ -f "${HOME}/opencode.md" ]] && grep -q "ContextSect" "${HOME}/opencode.md" 2>/dev/null && rm -f "${HOME}/opencode.md" && echo -e "  ${GREEN}✓${NC} Removed OpenCode rules"
+  [[ -f "${HOME}/.aider.conventions.md" ]] && grep -q "ContextSect" "${HOME}/.aider.conventions.md" 2>/dev/null && rm -f "${HOME}/.aider.conventions.md" && echo -e "  ${GREEN}✓${NC} Removed Aider rules"
+  [[ -f "${HOME}/.github/copilot-instructions.md" ]] && grep -q "ContextSect" "${HOME}/.github/copilot-instructions.md" 2>/dev/null && rm -f "${HOME}/.github/copilot-instructions.md" && echo -e "  ${GREEN}✓${NC} Removed GitHub Copilot rules"
+  [[ -f "${HOME}/AGENTS.md" ]] && grep -q "ContextSect" "${HOME}/AGENTS.md" 2>/dev/null && rm -f "${HOME}/AGENTS.md" && echo -e "  ${GREEN}✓${NC} Removed Codex rules"
+
+  # Remove CLI
+  echo ""
+  echo -e "  ${YELLOW}Remove the CLI itself?${NC}"
+  read -rp "  Remove ~/.contextsect and CLI command? [y/N]: " confirm2 </dev/tty
+  if [[ "$confirm2" == "y" || "$confirm2" == "Y" ]]; then
+    rm -rf "$INSTALL_DIR"
+    # Try to remove symlink
+    rm -f "/usr/local/bin/contextsect" 2>/dev/null || rm -f "${HOME}/.local/bin/contextsect" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Fully uninstalled"
+  else
+    echo -e "  ${GREEN}✓${NC} Rules removed. CLI kept."
+  fi
+
+  echo ""
+}
+
+# State file to track disabled status
+STATE_FILE="${INSTALL_DIR}/.disabled"
+
+RULE_NAMES=("alignment-gate" "context-hygiene" "diff-only" "investigation-mode" "loop-breaker" "output-contract" "plan-before-act" "search-first")
+
+cmd_disable() {
+  if [[ -f "$STATE_FILE" ]]; then
+    echo -e "  ${YELLOW}Already disabled.${NC} Run ${CYAN}contextsect enable${NC} to re-enable."
+    return
+  fi
+
+  echo -e "  ${CYAN}Disabling ContextSect rules...${NC}"
+  echo ""
+
+  # Kiro — rename steering files
+  if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
+    mv "${HOME}/.kiro/steering/000-profile.md" "${HOME}/.kiro/steering/000-profile.md.disabled"
+    for rule in "${RULE_NAMES[@]}"; do
+      [[ -f "${HOME}/.kiro/steering/${rule}.md" ]] && mv "${HOME}/.kiro/steering/${rule}.md" "${HOME}/.kiro/steering/${rule}.md.disabled"
+    done
+    echo -e "  ${GREEN}✓${NC} Kiro — disabled"
+  fi
+
+  # Claude Code — rename CLAUDE.md
+  if [[ -f "${HOME}/.claude/CLAUDE.md" ]] && grep -q "ContextSect" "${HOME}/.claude/CLAUDE.md" 2>/dev/null; then
+    mv "${HOME}/.claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md.disabled"
+    echo -e "  ${GREEN}✓${NC} Claude Code — disabled"
+  fi
+
+  # Cursor — rename .mdc files
+  if [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]]; then
+    for f in "${HOME}/.cursor/rules/000-profile.mdc" "${HOME}/.cursor/rules/"9*.mdc; do
+      [[ -f "$f" ]] && mv "$f" "${f}.disabled"
+    done
+    echo -e "  ${GREEN}✓${NC} Cursor — disabled"
+  fi
+
+  # Windsurf
+  for rule in "${RULE_NAMES[@]}"; do
+    [[ -f "${HOME}/.windsurf/rules/${rule}.md" ]] && mv "${HOME}/.windsurf/rules/${rule}.md" "${HOME}/.windsurf/rules/${rule}.md.disabled"
+  done
+  [[ -d "${HOME}/.windsurf/rules" ]] && ls "${HOME}/.windsurf/rules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} Windsurf — disabled"
+
+  # Cline
+  for rule in "${RULE_NAMES[@]}"; do
+    [[ -f "${HOME}/.clinerules/${rule}.md" ]] && mv "${HOME}/.clinerules/${rule}.md" "${HOME}/.clinerules/${rule}.md.disabled"
+  done
+  [[ -d "${HOME}/.clinerules" ]] && ls "${HOME}/.clinerules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} Cline — disabled"
+
+  # RooCode
+  for rule in "${RULE_NAMES[@]}"; do
+    [[ -f "${HOME}/.roo/rules/${rule}.md" ]] && mv "${HOME}/.roo/rules/${rule}.md" "${HOME}/.roo/rules/${rule}.md.disabled"
+  done
+  [[ -d "${HOME}/.roo/rules" ]] && ls "${HOME}/.roo/rules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} RooCode — disabled"
+
+  # Single-file agents — rename
+  [[ -f "${HOME}/opencode.md" ]] && grep -q "ContextSect" "${HOME}/opencode.md" 2>/dev/null && mv "${HOME}/opencode.md" "${HOME}/opencode.md.disabled" && echo -e "  ${GREEN}✓${NC} OpenCode — disabled"
+  [[ -f "${HOME}/.aider.conventions.md" ]] && grep -q "ContextSect" "${HOME}/.aider.conventions.md" 2>/dev/null && mv "${HOME}/.aider.conventions.md" "${HOME}/.aider.conventions.md.disabled" && echo -e "  ${GREEN}✓${NC} Aider — disabled"
+  [[ -f "${HOME}/.github/copilot-instructions.md" ]] && grep -q "ContextSect" "${HOME}/.github/copilot-instructions.md" 2>/dev/null && mv "${HOME}/.github/copilot-instructions.md" "${HOME}/.github/copilot-instructions.md.disabled" && echo -e "  ${GREEN}✓${NC} GitHub Copilot — disabled"
+  [[ -f "${HOME}/AGENTS.md" ]] && grep -q "ContextSect" "${HOME}/AGENTS.md" 2>/dev/null && mv "${HOME}/AGENTS.md" "${HOME}/AGENTS.md.disabled" && echo -e "  ${GREEN}✓${NC} Codex — disabled"
+
+  touch "$STATE_FILE"
+  echo ""
+  echo -e "  ${YELLOW}Rules disabled.${NC} Agents will use default behavior."
+  echo -e "  Run ${CYAN}contextsect enable${NC} to restore."
+  echo ""
+}
+
+cmd_enable() {
+  if [[ ! -f "$STATE_FILE" ]]; then
+    echo -e "  ${GREEN}Already enabled.${NC} Rules are active."
+    return
+  fi
+
+  echo -e "  ${CYAN}Re-enabling ContextSect rules...${NC}"
+  echo ""
+
+  # Kiro
+  if [[ -f "${HOME}/.kiro/steering/000-profile.md.disabled" ]]; then
+    mv "${HOME}/.kiro/steering/000-profile.md.disabled" "${HOME}/.kiro/steering/000-profile.md"
+    for rule in "${RULE_NAMES[@]}"; do
+      [[ -f "${HOME}/.kiro/steering/${rule}.md.disabled" ]] && mv "${HOME}/.kiro/steering/${rule}.md.disabled" "${HOME}/.kiro/steering/${rule}.md"
+    done
+    echo -e "  ${GREEN}✓${NC} Kiro — enabled"
+  fi
+
+  # Claude Code
+  if [[ -f "${HOME}/.claude/CLAUDE.md.disabled" ]]; then
+    mv "${HOME}/.claude/CLAUDE.md.disabled" "${HOME}/.claude/CLAUDE.md"
+    echo -e "  ${GREEN}✓${NC} Claude Code — enabled"
+  fi
+
+  # Cursor
+  if ls "${HOME}/.cursor/rules/"*.disabled &>/dev/null 2>&1; then
+    for f in "${HOME}/.cursor/rules/"*.disabled; do
+      mv "$f" "${f%.disabled}"
+    done
+    echo -e "  ${GREEN}✓${NC} Cursor — enabled"
+  fi
+
+  # Windsurf
+  if ls "${HOME}/.windsurf/rules/"*.disabled &>/dev/null 2>&1; then
+    for f in "${HOME}/.windsurf/rules/"*.disabled; do
+      mv "$f" "${f%.disabled}"
+    done
+    echo -e "  ${GREEN}✓${NC} Windsurf — enabled"
+  fi
+
+  # Cline
+  if ls "${HOME}/.clinerules/"*.disabled &>/dev/null 2>&1; then
+    for f in "${HOME}/.clinerules/"*.disabled; do
+      mv "$f" "${f%.disabled}"
+    done
+    echo -e "  ${GREEN}✓${NC} Cline — enabled"
+  fi
+
+  # RooCode
+  if ls "${HOME}/.roo/rules/"*.disabled &>/dev/null 2>&1; then
+    for f in "${HOME}/.roo/rules/"*.disabled; do
+      mv "$f" "${f%.disabled}"
+    done
+    echo -e "  ${GREEN}✓${NC} RooCode — enabled"
+  fi
+
+  # Single-file agents
+  [[ -f "${HOME}/opencode.md.disabled" ]] && mv "${HOME}/opencode.md.disabled" "${HOME}/opencode.md" && echo -e "  ${GREEN}✓${NC} OpenCode — enabled"
+  [[ -f "${HOME}/.aider.conventions.md.disabled" ]] && mv "${HOME}/.aider.conventions.md.disabled" "${HOME}/.aider.conventions.md" && echo -e "  ${GREEN}✓${NC} Aider — enabled"
+  [[ -f "${HOME}/.github/copilot-instructions.md.disabled" ]] && mv "${HOME}/.github/copilot-instructions.md.disabled" "${HOME}/.github/copilot-instructions.md" && echo -e "  ${GREEN}✓${NC} GitHub Copilot — enabled"
+  [[ -f "${HOME}/AGENTS.md.disabled" ]] && mv "${HOME}/AGENTS.md.disabled" "${HOME}/AGENTS.md" && echo -e "  ${GREEN}✓${NC} Codex — enabled"
+
+  rm -f "$STATE_FILE"
+  echo ""
+  echo -e "  ${GREEN}Rules re-enabled.${NC} Agents will optimize on next session."
+  echo ""
+}
+
+# ─── Main ───────────────────────────────────────────────────
+
+case "${1:-help}" in
+  install)    shift; cmd_install "$@" ;;
+  update)     shift; cmd_update "$@" ;;
+  profile)    shift; cmd_profile "$@" ;;
+  status)     cmd_status ;;
+  disable)    cmd_disable ;;
+  enable)     cmd_enable ;;
+  uninstall)  cmd_uninstall ;;
+  version|-v|--version) echo "contextsect ${VERSION}" ;;
+  help|-h|--help) usage ;;
+  *)
+    echo -e "  ${RED}Unknown command: $1${NC}"
+    usage
+    exit 1
+    ;;
+esac

@@ -6,11 +6,43 @@
 curl -sL https://contextsect.vercel.app/install.sh | bash
 ```
 
-The script **auto-detects** which agents you have installed and configures each one in its native format.
+The script **auto-detects** which agents you have installed, installs the `contextsect` CLI globally, and configures each agent in its native format.
 
 ---
 
-## What Happens
+## CLI
+
+After installation, the `contextsect` command is available globally:
+
+```bash
+contextsect install                     # Auto-detect agents + interactive profile
+contextsect install --profile balanced  # Non-interactive install
+contextsect update                      # Pull latest rules + reinstall
+contextsect profile aggressive          # Switch to a different profile
+contextsect status                      # Show installed agents, profile, version
+contextsect uninstall                   # Remove all rules from all agents
+contextsect version                     # Show version
+```
+
+### Common Workflows
+
+```bash
+# Update rules (from anywhere)
+contextsect update
+
+# Switch profile
+contextsect profile aggressive
+
+# Check what's configured
+contextsect status
+
+# Install for specific agents only
+contextsect install --agent kiro,claude-code --profile balanced
+```
+
+---
+
+## What Happens on Install
 
 ```mermaid
 flowchart LR
@@ -56,31 +88,10 @@ Available agents:
 Select agents (comma-separated numbers, or 'a' for all): 1,2,3
 ```
 
-## Explicit Agent Selection
+## Explicit Agent + Profile
 
 ```bash
-./install.sh --agent kiro,claude-code,cursor
-```
-
----
-
-## CLI Reference
-
-```bash
-# Auto-detect and install (interactive profile selection)
-./install.sh
-
-# Install with specific profile (non-interactive)
-./install.sh --profile balanced
-
-# Install for specific agents with profile
 ./install.sh --agent kiro,claude-code,cursor --profile aggressive
-
-# Change profile (re-installs with new settings)
-./install.sh --profile conservative
-
-# Update after pulling new rules
-git pull && ./install.sh --profile balanced
 ```
 
 ---
@@ -88,7 +99,9 @@ git pull && ./install.sh --profile balanced
 ## Updating
 
 ```bash
-cd ContextSect
-git pull
-./install.sh    # Re-installs with latest rules (backs up existing files)
+# From anywhere (recommended)
+contextsect update
+
+# Or manually
+cd ~/.contextsect && git pull && ./install.sh --profile balanced
 ```

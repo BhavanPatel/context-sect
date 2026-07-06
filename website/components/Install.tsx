@@ -7,7 +7,7 @@ export default function Install() {
         Install
       </h2>
       <p className="text-base mb-8" style={{ color: '#6b7394' }}>
-        Three commands. Auto-detects your agents. Configures everything.
+        One command. Auto-detects your agents. Installs the CLI globally.
       </p>
 
       <div className="rounded-xl overflow-hidden" style={{ background: '#0a0a1a', border: '1px solid #1e2130' }}>
@@ -18,14 +18,17 @@ export default function Install() {
           <span className="ml-2 text-xs" style={{ color: '#5a6480' }}>terminal</span>
         </div>
         <pre className="p-6 text-sm font-mono overflow-x-auto" style={{ color: '#b4bcd0' }}>
-          <code>{`$ git clone https://github.com/BhavanPatel/ContextSect.git
-$ cd ContextSect
-$ ./install.sh
+          <code>{`$ curl -sL https://contextsect.vercel.app/install.sh | bash
 
-╔══════════════════════════════════════════════════════╗
-║  ContextSect — Token Optimization Framework         ║
-║  Agent-Agnostic • Evidence-Based • Modular          ║
-╚══════════════════════════════════════════════════════╝
+  ╭──────────────────────────────────────────────╮
+  │   ContextSect — Token Optimization           │
+  │   Agent-Agnostic • Evidence-Based • Modular  │
+  ╰──────────────────────────────────────────────╯
+
+  ✓ git 2.53.0
+  ↓ Cloning ContextSect...
+  ✓ Source ready at ~/.contextsect
+  ✓ CLI installed: /usr/local/bin/contextsect
 
 Detecting installed AI coding agents...
 
@@ -58,16 +61,16 @@ Installing for 3 agent(s) with profile 'balanced'...
 
       <div className="mt-6 grid md:grid-cols-3 gap-4">
         <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2130' }}>
-          <div className="text-xs font-mono mb-1" style={{ color: '#10b981' }}>Set profile</div>
-          <code className="text-sm" style={{ color: '#b4bcd0' }}>./install.sh --profile aggressive</code>
-        </div>
-        <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2130' }}>
-          <div className="text-xs font-mono mb-1" style={{ color: '#10b981' }}>Specific agents</div>
-          <code className="text-sm" style={{ color: '#b4bcd0' }}>./install.sh --agent kiro,cursor</code>
-        </div>
-        <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2130' }}>
           <div className="text-xs font-mono mb-1" style={{ color: '#10b981' }}>Update</div>
-          <code className="text-sm" style={{ color: '#b4bcd0' }}>git pull && ./install.sh</code>
+          <code className="text-sm" style={{ color: '#b4bcd0' }}>contextsect update</code>
+        </div>
+        <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2130' }}>
+          <div className="text-xs font-mono mb-1" style={{ color: '#10b981' }}>Switch profile</div>
+          <code className="text-sm" style={{ color: '#b4bcd0' }}>contextsect profile aggressive</code>
+        </div>
+        <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2130' }}>
+          <div className="text-xs font-mono mb-1" style={{ color: '#10b981' }}>Status</div>
+          <code className="text-sm" style={{ color: '#b4bcd0' }}>contextsect status</code>
         </div>
       </div>
     </section>
