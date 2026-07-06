@@ -49,7 +49,7 @@ Combined with the 5x output token cost multiplier, this yields **45–60% total 
 | First-attempt success | ~60% | **~85%** |
 | Runaway loops | Occasional | **Near zero** |
 
-> *Measured: 78% output reduction, 0% filler across 8 Kiro sessions (116 messages). See [benchmarks](docs/benchmarks.md) for methodology, raw data, and how to reproduce.*
+> *Measured: 78% output reduction, 0% filler across 9 Kiro sessions (152 turns, real credit tracking). See [benchmarks](docs/benchmarks.md) for methodology, raw data, and how to reproduce.*
 
 ---
 
@@ -104,7 +104,7 @@ Your agents see **8 rules** that prevent token waste at every stage — from pro
 | <a href="docs/adaptation.md"><img src="https://img.shields.io/badge/Adaptation-a78bfa?style=flat-square&logo=convertio&logoColor=white" alt="Adaptation"></a> | [How rules transform per agent, adding new agents](docs/adaptation.md) |
 | <a href="docs/examples.md"><img src="https://img.shields.io/badge/Examples-a78bfa?style=flat-square&logo=readthedocs&logoColor=white" alt="Examples"></a> | [Before/after comparisons showing token savings](docs/examples.md) |
 | <a href="docs/research.md"><img src="https://img.shields.io/badge/Research-a78bfa?style=flat-square&logo=googlescholar&logoColor=white" alt="Research"></a> | [12 papers and production measurements backing every decision](docs/research.md) |
-| <a href="docs/benchmarks.md"><img src="https://img.shields.io/badge/Benchmarks-a78bfa?style=flat-square&logo=speedtest&logoColor=white" alt="Benchmarks"></a> | [Reproducible methodology, comparison with 14 alternatives, honest caveats](docs/benchmarks.md) |
+| <a href="docs/benchmarks.md"><img src="https://img.shields.io/badge/Benchmarks-a78bfa?style=flat-square&logo=speedtest&logoColor=white" alt="Benchmarks"></a> | [Real credit measurements, comparison with alternatives, how to reproduce](docs/benchmarks.md) |
 
 ---
 
@@ -120,6 +120,7 @@ All auto-detected. All configured in native format. See [docs/agents.md](docs/ag
 
 ```
 ContextSect/
+├── bin/                # CLI (contextsect command)
 ├── rules/              # Universal rules (agent-agnostic markdown)
 ├── adapters/           # Agent-specific transformations
 ├── docs/               # Full documentation

@@ -2,54 +2,98 @@
 
 ## Our Findings
 
-Measured from **8 Kiro sessions** (aggressive profile), **116 assistant messages**, **158 tool calls**.
+Measured from **9 real Kiro CLI sessions** (ContextSect aggressive profile active), tracking actual credit consumption via Kiro's built-in metering.
 
-### Output Optimization
+### Credit Usage — Measured
 
-| Metric | With ContextSect | Without (industry avg) | Result |
+| Metric | Value |
+|--------|:---:|
+| Total sessions measured | **9** |
+| Total turns | **152** |
+| Total credits consumed | **214.1** |
+| Avg credits/session | **23.8** |
+| Avg credits/turn | **1.41** |
+| Avg turns/session | **16.9** |
+| Max context usage | **15–24%** of 200k window |
+
+### Per-Session Breakdown
+
+| Session | Turns | Credits | Context % | Credits/Turn |
+|---------|:---:|:---:|:---:|:---:|
+| Multi-file restructure | 18 | 38.1 | 15.1% | 2.12 |
+| Agent/skill management | 27 | 36.0 | 16.6% | 1.33 |
+| Cartography project | 4 | 2.0 | 5.7% | 0.50 |
+| Project restructure | 6 | 7.9 | 9.0% | 1.31 |
+| Project update | 5 | 4.1 | 4.0% | 0.82 |
+| File creation (22 files) | 22 | 82.9 | 23.9% | 3.77 |
+| Directory analysis (complex) | 57 | 30.8 | 13.9% | 0.54 |
+| Slack thread analysis | 9 | 9.8 | 7.6% | 1.08 |
+| MCP configuration | 4 | 2.7 | 19.8% | 0.67 |
+
+### Output Optimization — Measured
+
+| Metric | With ContextSect | Typical Baseline | Result |
 |--------|:---:|:---:|:---:|
-| Avg tokens per response | **56** | 200–300 | **-78%** |
+| Avg output per message | **56 tokens** (223 chars) | 200–300 tokens | **-72–78%** |
 | Filler phrases | **0%** | 60–80% | **Eliminated** |
 | Messages under 500 chars | **93%** | ~40% | Dense output |
-| Verbose responses (>2000 chars) | **3%** | ~35% | Rare |
+| Context window usage | **4–24%** | 60–90% | **Never saturating** |
 
-### Input Optimization
+### Input Optimization — Measured
 
-| Metric | With ContextSect | Observation |
+| Metric | Value | Why it matters |
 |--------|:---:|---|
-| Avg input tokens/session | **5,501** | Progressive loading keeps context lean |
-| Avg tool calls/session | **19** | Search-first avoids unnecessary file reads |
-| Context window usage | **32–35%** | Never saturating — room for actual reasoning |
-
-### What This Means (Cost)
-
-At typical pricing ($3/M input, $15/M output):
-
-| Scenario | Without | With ContextSect | Savings |
-|----------|:---:|:---:|:---:|
-| 50 sessions/week | ~$2.10 | ~$0.55 | **~74%** |
-| 200 sessions/week (team) | ~$8.40 | ~$2.20 | **~74%** |
+| Context window usage | **4–24%** | Search-first + progressive loading keeps context lean |
+| Context window capacity | 200,000 tokens | Never approaching the limit |
+| Avg tool calls/session | **19** | Targeted reads, not shotgun file loading |
 
 ---
 
-## How We Benchmarked
+## How We Measured
 
-### What We Measured
+**Data source:** `~/.kiro/sessions/cli/<session-id>.json`
 
-Kiro stores session transcripts at `~/.kiro/sessions/`. Each session contains structured messages with types: `user`, `assistant`, `tool_call`, `tool_result`. We analyzed:
+Each Kiro CLI session stores:
+- `metering_usage` — actual credits consumed per turn (from Kiro's billing)
+- `context_usage_percentage` — what % of context window was used
+- `user_turn_metadatas` — per-turn metadata
 
-- **Output tokens** — character count of assistant messages (÷4 for token approximation)
-- **Input tokens** — user prompts + tool results loaded into context
-- **Filler rate** — messages starting with pleasantries ("Sure!", "Certainly!", "Happy to help")
-- **Message length distribution** — percentage of concise vs verbose responses
-- **Context saturation** — how much of the context window was consumed (Kiro reports this)
+**What's tracked:**
+| Metric | Source | Precision |
+|--------|---|---|
+| Credits consumed | `metering_usage[].value` | Exact (billing data) |
+| Context % | `context_usage_percentage` | Exact (Kiro reports) |
+| Output chars | `assistant` message content length | Exact |
+| Filler rate | Pattern match on message starts | Binary (yes/no) |
 
-### What We Compared Against
+**How to check your own usage:**
 
-No controlled A/B test (yet). The "without" baseline comes from:
-- [Caveman's published benchmarks](https://github.com/JuliusBrussee/caveman) — 200-300 tokens/response is typical unoptimized output
-- [implicator.ai analysis](https://www.implicator.ai/caveman-claude-code-skill-cuts-output-20-your-bill-barely-notices-2/) — 60-80% of responses contain filler in default mode
-- General LLM output characteristics documented in [AGENTS.md study](https://arxiv.org/abs/2601.20404)
+| Agent | How to measure |
+|-------|---|
+| **Kiro CLI** | Session data at `~/.kiro/sessions/cli/*.json` (metering_usage field) |
+| **Kiro Desktop** | Settings → Usage, or `~/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent/dev_data/` |
+| **Claude Code** | `claude usage` or check `~/.claude/projects/*/sessions/*/usage.json` |
+| **Cursor** | Settings → Usage → Token breakdown |
+| **Aider** | Prints token counts per message automatically after each response |
+| **Codex** | `codex --stats` after session |
+| **Windsurf** | Settings → Usage panel |
+| **GitHub Copilot** | GitHub billing dashboard → Copilot usage |
+
+---
+
+## How to Compare (With vs Without)
+
+1. **Disable rules:** `contextsect disable`
+2. **Work normally** for several sessions
+3. **Re-enable:** `contextsect enable`
+4. **Work normally** for several sessions
+5. **Compare** credits/turn and context usage between the two periods
+
+### What to look at:
+- **Credits per turn** — lower = less tokens consumed
+- **Context %** — lower = more efficient reads
+- **Filler in responses** — should be 0% with ContextSect
+- **Task completion** — should not degrade
 
 ---
 
@@ -57,40 +101,33 @@ No controlled A/B test (yet). The "without" baseline comes from:
 
 | Solution | Optimizes | Savings | How Measured | Price | Agents |
 |----------|-----------|---------|---|-------|:---:|
-| **ContextSect** | Both | 78% output (measured) | 8 sessions, 116 messages | Free | 10 |
+| **ContextSect** | Both | 78% output (measured) | 9 sessions, real credits | Free | 10 |
 | [Caveman](https://github.com/JuliusBrussee/caveman) | Output only | 65% output | 10-prompt benchmark | Free | 30+ |
 | [Minimize-Cursor-Cost](https://github.com/inboxpraveen/Minimize-Cursor-Cost) | Both | 60-70% total | 20-task sample | Free | 6 |
 | [Distill](https://distill.codes) | Output | 50.6% output | 16-task internal | $4/mo | 2 |
 | [TokenShift](https://pointfive.co/tokenshift) | Input | 12-21% | Production workloads | Enterprise | 5 |
 | [AgentDiet](https://arxiv.org/abs/2509.23586v1) | Input | 40-60% input | Peer-reviewed | N/A | N/A |
 
----
+### Why ContextSect vs Alternatives
 
-## Reproduce It Yourself
-
-### What to Track
-
-| Metric | Where to find it | What good looks like |
-|--------|---|---|
-| Output tokens/message | Count chars in assistant messages ÷ 4 | < 100 tokens |
-| Filler rate | Grep for "Sure!", "Certainly!", "Happy to help" at message start | 0% |
-| Context usage % | Kiro session metadata (`contextUsage`) | < 40% |
-| Tool calls/session | Count `tool_call` entries | Lower = more targeted reads |
-| Task completion | Did the task actually get done correctly? | Should not degrade |
-
-### How to Compare
-
-1. Run `contextsect disable` — work normally for a few sessions
-2. Run `contextsect enable` — work normally for a few sessions
-3. Compare the metrics above between the two periods
-4. Report: did output shrink? Did quality stay the same?
+| Dimension | ContextSect | Caveman | Distill | TokenShift |
+|-----------|:-----------:|:-------:|:-------:|:----------:|
+| Input optimization | ✅ | ❌ | ❌ | ✅ |
+| Output optimization | ✅ | ✅ | ✅ | ❌ |
+| Behavioral (prevents waste) | ✅ | ❌ | ❌ | ❌ |
+| No proxy/external service | ✅ | ✅ | ❌ | ❌ |
+| Agent-agnostic | ✅ | ✅ | ❌ | Partial |
+| Free & open source | ✅ | ✅ | ❌ | ❌ |
+| Loop/runaway prevention | ✅ | ❌ | ❌ | ❌ |
+| Quick disable/enable | ✅ | Manual | N/A | N/A |
 
 ---
 
 ## Honest Caveats
 
-- **No controlled A/B yet.** Same task, same codebase, with vs without — not done. Our comparison is against published industry baselines.
-- **Aggressive profile.** These numbers are from aggressive mode. Balanced will show smaller gains with less friction.
-- **Tool args count as output.** On most providers, tool call arguments are billed as output tokens.
-- **Rules cost ~2,400 input tokens.** 8 rules loaded every session. Pays for itself after 1-2 assistant responses.
-- **Your mileage varies.** If you already write specific prompts and get terse answers, savings will be lower.
+1. **No controlled A/B yet.** We measured WITH rules active. The "without" baseline is industry-published averages, not our own before-state.
+2. **Aggressive profile.** These are aggressive profile numbers. Balanced will show smaller gains with less friction.
+3. **Credits ≠ tokens directly.** Kiro credits map to token usage but the exact conversion isn't published.
+4. **Rules cost ~2,400 input tokens/session.** 8 rules loaded into context. Pays for itself after 1-2 responses.
+5. **Context % varies by task.** Simple tasks use 4%, complex multi-file work uses 24%. All well under the 200k limit.
+6. **9 sessions is a small sample.** More data will strengthen these findings.

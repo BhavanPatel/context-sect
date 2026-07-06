@@ -56,7 +56,7 @@ export default function Profiles() {
       </div>
 
       <div className="mt-8 p-4 rounded-lg font-mono text-sm" style={{ background: '#0a0a1a', border: '1px solid #1e2130', color: '#b4bcd0' }}>
-        <span style={{ color: '#5a6480' }}>$</span> ./install.sh --profile <span style={{ color: '#a78bfa' }}>balanced</span>
+        <span style={{ color: '#5a6480' }}>$</span> contextsect profile <span style={{ color: '#a78bfa' }}>balanced</span>
       </div>
     </section>
   );
