@@ -9,6 +9,10 @@ const sources = [
   { name: "Lost in the Middle", type: "Academic", finding: "Context position critically affects quality", url: "https://arxiv.org/html/2307.03172" },
   { name: "Prompt Caching", type: "Production", finding: "60–90% input cost reduction", url: "https://claude.com/blog/lessons-from-building-claude-code-prompt-caching-is-everything" },
   { name: "AgentDiet", type: "Academic", finding: "40–60% input reduction, same performance", url: "https://arxiv.org/abs/2509.23586v1" },
+  { name: "Progressive Context Loading", type: "Production", finding: "Tiered loading cuts usage 60% with better quality", url: "https://chudinnorukam.hashnode.dev/cut-ai-token-usage-60-progressive-context-loading" },
+  { name: "implicator.ai Analysis", type: "Community", finding: "Real-world caveman savings ~20% on total bill", url: "https://www.implicator.ai/caveman-claude-code-skill-cuts-output-20-your-bill-barely-notices-2/" },
+  { name: "Loop Waste", type: "Production", finding: "Single misconfigured tool caused 64-turn waste loop", url: "https://github.blog/ai-and-ml/github-copilot/improving-token-efficiency-in-github-agentic-workflows/" },
+  { name: "SEARCH/REPLACE Standard", type: "Community", finding: "Diff-based output: industry standard, 60–90% reduction", url: "https://aider.chat/docs/usage/edit-formats.html" },
 ];
 
 export default function Research() {

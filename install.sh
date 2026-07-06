@@ -139,62 +139,80 @@ select_agents_manually() {
 
 SELECTED_PROFILE=""
 
-declare -A PROFILE_DESC=(
-  ["conservative"]="Zero risk. Full exploration. Minimal constraints."
-  ["balanced"]="Recommended. Significant savings with minimal friction."
-  ["aggressive"]="Maximum savings for familiar codebases. Tight budgets."
-  ["ultra-aggressive"]="Absolute minimum tokens. Automated/repetitive tasks only."
-)
+get_profile_desc() {
+  case "$1" in
+    conservative)     echo "Zero risk. Full exploration. Minimal constraints." ;;
+    balanced)         echo "Recommended. Significant savings with minimal friction." ;;
+    aggressive)       echo "Maximum savings for familiar codebases. Tight budgets." ;;
+    ultra-aggressive) echo "Absolute minimum tokens. Automated/repetitive tasks only." ;;
+  esac
+}
 
-declare -A PROFILE_SETTINGS=(
-  ["conservative"]="alignment-gate: disabled (no blocking)
+get_profile_settings() {
+  case "$1" in
+    conservative) cat <<'SETTINGS'
+alignment-gate: disabled (no blocking)
 output-compression: lite (no filler, but full sentences)
 search-first: advisory (prefer search, allow full reads)
 loop-detection: 5 repetitions before halt
 plan-required: disabled
-investigation-budget: 10 tool calls"
-  ["balanced"]="alignment-gate: active on 3+ file changes
+investigation-budget: 10 tool calls
+SETTINGS
+      ;;
+    balanced) cat <<'SETTINGS'
+alignment-gate: active on 3+ file changes
 output-compression: full (fragments OK, no filler, diff-only)
 search-first: enforced (search before reading files >50 lines)
 loop-detection: 3 repetitions before halt
 plan-required: 3+ file modifications
-investigation-budget: 5 tool calls"
-  ["aggressive"]="alignment-gate: active on 2+ file changes
+investigation-budget: 5 tool calls
+SETTINGS
+      ;;
+    aggressive) cat <<'SETTINGS'
+alignment-gate: active on 2+ file changes
 output-compression: ultra (maximum density)
 search-first: strict (never read full files >30 lines)
 loop-detection: 2 repetitions before halt
 plan-required: 2+ file modifications
-investigation-budget: 3 tool calls"
-  ["ultra-aggressive"]="alignment-gate: active on ALL multi-step tasks
+investigation-budget: 3 tool calls
+SETTINGS
+      ;;
+    ultra-aggressive) cat <<'SETTINGS'
+alignment-gate: active on ALL multi-step tasks
 output-compression: ultra-max (no explanations unless asked)
 search-first: strict symbol-only (no grep, no broad reads)
 loop-detection: 1 repetition before halt
 plan-required: ALL tasks with >1 file
 investigation-budget: 2 tool calls
-session-limit: single task per session"
-)
+session-limit: single task per session
+SETTINGS
+      ;;
+  esac
+}
 
-declare -A PROFILE_SAVINGS=(
-  ["conservative"]="Input: -15–25% | Output: -20–30% | Risk: Zero"
-  ["balanced"]="Input: -40–55% | Output: -50–65% | Risk: Low"
-  ["aggressive"]="Input: -60–75% | Output: -70–85% | Risk: Medium"
-  ["ultra-aggressive"]="Input: -80–90% | Output: -85–95% | Risk: High"
-)
+get_profile_savings() {
+  case "$1" in
+    conservative)     echo "Input: -15–25% | Output: -20–30% | Risk: Zero" ;;
+    balanced)         echo "Input: -40–55% | Output: -50–65% | Risk: Low" ;;
+    aggressive)       echo "Input: -60–75% | Output: -70–85% | Risk: Medium" ;;
+    ultra-aggressive) echo "Input: -80–90% | Output: -85–95% | Risk: High" ;;
+  esac
+}
 
 select_profile() {
   echo -e "${CYAN}Select optimization profile:${NC}"
   echo ""
-  echo -e "  ${GREEN}1) conservative${NC}    — ${PROFILE_DESC[conservative]}"
-  echo -e "     Savings: ${PROFILE_SAVINGS[conservative]}"
+  echo -e "  ${GREEN}1) conservative${NC}    — $(get_profile_desc conservative)"
+  echo -e "     Savings: $(get_profile_savings conservative)"
   echo ""
-  echo -e "  ${GREEN}2) balanced${NC} ⭐     — ${PROFILE_DESC[balanced]}"
-  echo -e "     Savings: ${PROFILE_SAVINGS[balanced]}"
+  echo -e "  ${GREEN}2) balanced${NC} ⭐     — $(get_profile_desc balanced)"
+  echo -e "     Savings: $(get_profile_savings balanced)"
   echo ""
-  echo -e "  ${GREEN}3) aggressive${NC}      — ${PROFILE_DESC[aggressive]}"
-  echo -e "     Savings: ${PROFILE_SAVINGS[aggressive]}"
+  echo -e "  ${GREEN}3) aggressive${NC}      — $(get_profile_desc aggressive)"
+  echo -e "     Savings: $(get_profile_savings aggressive)"
   echo ""
-  echo -e "  ${GREEN}4) ultra-aggressive${NC} — ${PROFILE_DESC[ultra-aggressive]}"
-  echo -e "     Savings: ${PROFILE_SAVINGS[ultra-aggressive]}"
+  echo -e "  ${GREEN}4) ultra-aggressive${NC} — $(get_profile_desc ultra-aggressive)"
+  echo -e "     Savings: $(get_profile_savings ultra-aggressive)"
   echo ""
   echo -e "  ${YELLOW}Recommended: balanced (best tradeoff for daily development)${NC}"
   echo ""
@@ -218,13 +236,15 @@ select_profile() {
 }
 
 generate_profile_header() {
+  local settings
+  settings="$(get_profile_settings "$SELECTED_PROFILE")"
   cat <<EOF
 # ContextSect — Active Profile: ${SELECTED_PROFILE}
 # Generated: $(date +%Y-%m-%d)
 # Re-run: ./install.sh --profile ${SELECTED_PROFILE}
 
 ## Profile Settings
-${PROFILE_SETTINGS[$SELECTED_PROFILE]}
+${settings}
 
 ---
 

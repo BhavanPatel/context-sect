@@ -13,10 +13,10 @@ export default function Footer() {
           <a href="https://github.com/BhavanPatel/ContextSect" className="text-sm hover:underline" style={{ color: '#6b7394' }}>
             GitHub
           </a>
-          <a href="https://github.com/BhavanPatel/ContextSect/blob/main/docs/01-research-summary.md" className="text-sm hover:underline" style={{ color: '#6b7394' }}>
+          <a href="https://github.com/BhavanPatel/ContextSect/blob/main/docs/research.md" className="text-sm hover:underline" style={{ color: '#6b7394' }}>
             Research
           </a>
-          <a href="https://github.com/BhavanPatel/ContextSect/blob/main/docs/06-final-recommendation.md" className="text-sm hover:underline" style={{ color: '#6b7394' }}>
+          <a href="https://github.com/BhavanPatel/ContextSect/blob/main/docs/architecture.md" className="text-sm hover:underline" style={{ color: '#6b7394' }}>
             Docs
           </a>
         </div>
