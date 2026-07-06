@@ -82,15 +82,15 @@ Your agents see **8 rules** that prevent token waste at every stage — from pro
 ## Documentation
 
 | | |
-|---|---|
-| [**Install**](docs/install.md) | Installation flow, CLI flags, manual selection, updating |
-| [**Architecture**](docs/architecture.md) | Two-pillar design, token economics, system flow diagram |
-| [**Rules**](docs/rules.md) | All 8 rules with savings, synergies, implementation priority |
-| [**Profiles**](docs/profiles.md) | 4 intensity levels, per-agent config, mid-session switching |
-| [**Agents**](docs/agents.md) | 10 supported agents, detection logic, config formats |
-| [**Adaptation**](docs/adaptation.md) | How rules transform per agent, adding new agents |
-| [**Examples**](docs/examples.md) | Before/after comparisons showing token savings |
-| [**Research**](docs/research.md) | 12 papers and production measurements backing every decision |
+|:--|:--|
+| [[Install]][1] | [Installation flow, CLI flags, manual selection, updating](docs/install.md) |
+| [[Architecture]][2] | [Two-pillar design, token economics, system flow diagram](docs/architecture.md) |
+| [[Rules]][3] | [All 8 rules with savings, synergies, implementation priority](docs/rules.md) |
+| [[Profiles]][4] | [4 intensity levels, per-agent config, mid-session switching](docs/profiles.md) |
+| [[Agents]][5] | [10 supported agents, detection logic, config formats](docs/agents.md) |
+| [[Adaptation]][6] | [How rules transform per agent, adding new agents](docs/adaptation.md) |
+| [[Examples]][7] | [Before/after comparisons showing token savings](docs/examples.md) |
+| [[Research]][8] | [12 papers and production measurements backing every decision](docs/research.md) |
 
 ---
 
@@ -117,13 +117,7 @@ ContextSect/
 
 ## Star History
 
-<a href="https://star-history.com/#BhavanPatel/ContextSect&type=Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=BhavanPatel/ContextSect&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=BhavanPatel/ContextSect&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=BhavanPatel/ContextSect&type=Date" />
- </picture>
-</a>
+[![Star History Chart](https://api.star-history.com/svg?repos=BhavanPatel/ContextSect&type=Date)](https://star-history.com/#BhavanPatel/ContextSect&type=Date)
 
 ---
 
@@ -136,3 +130,12 @@ ContextSect/
 ## License
 
 MIT
+
+[1]: docs/install.md
+[2]: docs/architecture.md
+[3]: docs/rules.md
+[4]: docs/profiles.md
+[5]: docs/agents.md
+[6]: docs/adaptation.md
+[7]: docs/examples.md
+[8]: docs/research.md
