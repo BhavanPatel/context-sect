@@ -83,14 +83,14 @@ Your agents see **8 rules** that prevent token waste at every stage — from pro
 
 | | |
 |:--|:--|
-| [[Install]][1] | [Installation flow, CLI flags, manual selection, updating](docs/install.md) |
-| [[Architecture]][2] | [Two-pillar design, token economics, system flow diagram](docs/architecture.md) |
-| [[Rules]][3] | [All 8 rules with savings, synergies, implementation priority](docs/rules.md) |
-| [[Profiles]][4] | [4 intensity levels, per-agent config, mid-session switching](docs/profiles.md) |
-| [[Agents]][5] | [10 supported agents, detection logic, config formats](docs/agents.md) |
-| [[Adaptation]][6] | [How rules transform per agent, adding new agents](docs/adaptation.md) |
-| [[Examples]][7] | [Before/after comparisons showing token savings](docs/examples.md) |
-| [[Research]][8] | [12 papers and production measurements backing every decision](docs/research.md) |
+| <a href="docs/install.md"><img src="https://img.shields.io/badge/Install-a78bfa?style=flat-square&logo=gnubash&logoColor=white" alt="Install"></a> | [Installation flow, CLI flags, manual selection, updating](docs/install.md) |
+| <a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-a78bfa?style=flat-square&logo=blueprint&logoColor=white" alt="Architecture"></a> | [Two-pillar design, token economics, system flow diagram](docs/architecture.md) |
+| <a href="docs/rules.md"><img src="https://img.shields.io/badge/Rules-a78bfa?style=flat-square&logo=checkmarx&logoColor=white" alt="Rules"></a> | [All 8 rules with savings, synergies, implementation priority](docs/rules.md) |
+| <a href="docs/profiles.md"><img src="https://img.shields.io/badge/Profiles-a78bfa?style=flat-square&logo=sliders&logoColor=white" alt="Profiles"></a> | [4 intensity levels, per-agent config, mid-session switching](docs/profiles.md) |
+| <a href="docs/agents.md"><img src="https://img.shields.io/badge/Agents-a78bfa?style=flat-square&logo=robots&logoColor=white" alt="Agents"></a> | [10 supported agents, detection logic, config formats](docs/agents.md) |
+| <a href="docs/adaptation.md"><img src="https://img.shields.io/badge/Adaptation-a78bfa?style=flat-square&logo=convertio&logoColor=white" alt="Adaptation"></a> | [How rules transform per agent, adding new agents](docs/adaptation.md) |
+| <a href="docs/examples.md"><img src="https://img.shields.io/badge/Examples-a78bfa?style=flat-square&logo=readthedocs&logoColor=white" alt="Examples"></a> | [Before/after comparisons showing token savings](docs/examples.md) |
+| <a href="docs/research.md"><img src="https://img.shields.io/badge/Research-a78bfa?style=flat-square&logo=googlescholar&logoColor=white" alt="Research"></a> | [12 papers and production measurements backing every decision](docs/research.md) |
 
 ---
 
@@ -130,12 +130,3 @@ ContextSect/
 ## License
 
 MIT
-
-[1]: docs/install.md
-[2]: docs/architecture.md
-[3]: docs/rules.md
-[4]: docs/profiles.md
-[5]: docs/agents.md
-[6]: docs/adaptation.md
-[7]: docs/examples.md
-[8]: docs/research.md
