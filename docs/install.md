@@ -46,7 +46,7 @@ contextsect install --agent kiro,claude-code --profile balanced
 
 ```mermaid
 flowchart LR
-    A[./install.sh] --> B{Auto-detect agents}
+    A[contextsect install] --> B{Auto-detect agents}
     B --> C[Kiro detected]
     B --> D[Claude Code detected]
     B --> E[Cursor detected]
@@ -91,7 +91,7 @@ Select agents (comma-separated numbers, or 'a' for all): 1,2,3
 ## Explicit Agent + Profile
 
 ```bash
-./install.sh --agent kiro,claude-code,cursor --profile aggressive
+contextsect install --agent kiro,claude-code,cursor --profile aggressive
 ```
 
 ---
@@ -103,5 +103,5 @@ Select agents (comma-separated numbers, or 'a' for all): 1,2,3
 contextsect update
 
 # Or manually
-cd ~/.contextsect && git pull && ./install.sh --profile balanced
+contextsect update
 ```

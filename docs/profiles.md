@@ -34,16 +34,16 @@ flowchart TD
 
 ```bash
 # First install — interactive profile selection with examples
-./install.sh
+contextsect install
 
 # Set profile via flag (non-interactive, CI-friendly)
-./install.sh --profile balanced
+contextsect install --profile balanced
 
 # Change profile anytime (re-runs installation with new profile)
-./install.sh --profile aggressive
+contextsect profile aggressive
 
 # Combine flags
-./install.sh --agent kiro,claude-code --profile conservative
+contextsect install --agent kiro,claude-code --profile conservative
 ```
 
 ### What You'll See on First Install

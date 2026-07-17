@@ -253,7 +253,7 @@ generate_profile_header() {
   cat <<EOF
 # ContextSect — Active Profile: ${SELECTED_PROFILE}
 # Generated: $(date +%Y-%m-%d)
-# Re-run: ./install.sh --profile ${SELECTED_PROFILE}
+# Re-run: contextsect install --profile ${SELECTED_PROFILE}
 
 ## Profile Settings
 ${settings}

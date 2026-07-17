@@ -63,7 +63,7 @@ Auto-detects installed agents, selects a profile, configures everything in nativ
 
 ```bash
 # Or explicit
-./install.sh --agent kiro,claude-code,cursor --profile balanced
+contextsect install --agent kiro,claude-code,cursor --profile balanced
 ```
 
 ### CLI
