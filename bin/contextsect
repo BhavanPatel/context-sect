@@ -27,6 +27,7 @@ usage() {
   echo "    disable          Temporarily disable all rules (keeps files, renames them)"
   echo "    enable           Re-enable previously disabled rules"
   echo "    uninstall        Remove all ContextSect rules from agents"
+  echo "    companions       Show companion tools for maximum token savings"
   echo "    version          Show version"
   echo "    help             Show this help"
   echo ""
@@ -418,6 +419,33 @@ cmd_enable() {
 
 # ─── Main ───────────────────────────────────────────────────
 
+cmd_companions() {
+  echo ""
+  echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
+  echo -e "${CYAN}║  Companion Stack — Maximize Token Savings            ║${NC}"
+  echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+  echo ""
+  echo -e "  ContextSect handles behavioral optimization (Layer 1)."
+  echo -e "  For maximum savings, add these companion tools:"
+  echo ""
+  echo -e "  ${BLUE}Layer 2: CLI Output Compression (60-90% savings)${NC}"
+  echo -e "    RTK:         brew install rtk && rtk init -g"
+  echo -e "    Token Juice: tokenjuice install claude-code"
+  echo -e "    ${YELLOW}→ https://github.com/rtk-ai/rtk${NC}"
+  echo -e "    ${YELLOW}→ https://github.com/vincentkoc/tokenjuice${NC}"
+  echo ""
+  echo -e "  ${BLUE}Layer 3: API Payload Compression (60-94% savings)${NC}"
+  echo -e "    Headroom:    pip install headroom-ai && headroom wrap claude"
+  echo -e "    ${YELLOW}→ https://github.com/chopratejas/headroom${NC}"
+  echo ""
+  echo -e "  ${BLUE}Layer 4: Codebase Knowledge Graph (49-71x reduction)${NC}"
+  echo -e "    Graphify:    pip install graphifyy && graphify index ."
+  echo -e "    ${YELLOW}→ https://github.com/safishamsi/graphify${NC}"
+  echo ""
+  echo -e "  ${GREEN}Full guide: docs/companion-stack.md${NC}"
+  echo ""
+}
+
 case "${1:-help}" in
   install)    shift; cmd_install "$@" ;;
   update)     shift; cmd_update "$@" ;;
@@ -426,6 +454,7 @@ case "${1:-help}" in
   disable)    cmd_disable ;;
   enable)     cmd_enable ;;
   uninstall)  cmd_uninstall ;;
+  companions) cmd_companions ;;
   version|-v|--version) echo "contextsect ${VERSION}" ;;
   help|-h|--help) usage ;;
   *)

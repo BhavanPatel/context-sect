@@ -157,6 +157,9 @@ search-first: advisory (prefer search, allow full reads)
 loop-detection: 5 repetitions before halt
 plan-required: disabled
 investigation-budget: 10 tool calls
+shell-output-hygiene: advisory (suggest compact flags, allow verbose)
+context-budget: monitor only (no session-limit enforcement)
+tool-selection: advisory (prefer specific tools, allow generic)
 SETTINGS
       ;;
     balanced) cat <<'SETTINGS'
@@ -166,6 +169,9 @@ search-first: enforced (search before reading files >50 lines)
 loop-detection: 3 repetitions before halt
 plan-required: 3+ file modifications
 investigation-budget: 5 tool calls
+shell-output-hygiene: enforced (always use compact flags)
+context-budget: enforced (warn at 50K, recommend fresh at 100K)
+tool-selection: enforced (prefer specific tools, budget per task)
 SETTINGS
       ;;
     aggressive) cat <<'SETTINGS'
@@ -175,6 +181,9 @@ search-first: strict (never read full files >30 lines)
 loop-detection: 2 repetitions before halt
 plan-required: 2+ file modifications
 investigation-budget: 3 tool calls
+shell-output-hygiene: strict (always quiet/summary first, never verbose)
+context-budget: strict (hard stop at 100K, fresh session at 15 turns)
+tool-selection: strict (minimum calls, batch aggressively)
 SETTINGS
       ;;
     ultra-aggressive) cat <<'SETTINGS'
@@ -185,6 +194,9 @@ loop-detection: 1 repetition before halt
 plan-required: ALL tasks with >1 file
 investigation-budget: 2 tool calls
 session-limit: single task per session
+shell-output-hygiene: maximum (pipe everything through head/tail, no raw output)
+context-budget: maximum (hard stop at 50K, fresh session at 10 turns)
+tool-selection: maximum (1-2 calls per step, zero exploratory calls)
 SETTINGS
       ;;
   esac
@@ -499,6 +511,36 @@ install_codex() {
 }
 
 # ════════════════════════════════════════════════════════════════
+# Companion Stack Info (display only — no auto-install)
+# ════════════════════════════════════════════════════════════════
+
+install_companions() {
+  echo ""
+  echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
+  echo -e "${CYAN}║  Companion Stack — Maximize Token Savings            ║${NC}"
+  echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+  echo ""
+  echo -e "  ContextSect handles behavioral optimization (Layer 1)."
+  echo -e "  For maximum savings, add these companion tools:"
+  echo ""
+  echo -e "  ${BLUE}Layer 2: CLI Output Compression (60-90% savings)${NC}"
+  echo -e "    RTK:         brew install rtk && rtk init -g"
+  echo -e "    Token Juice: tokenjuice install claude-code"
+  echo -e "    ${YELLOW}→ https://github.com/rtk-ai/rtk${NC}"
+  echo -e "    ${YELLOW}→ https://github.com/vincentkoc/tokenjuice${NC}"
+  echo ""
+  echo -e "  ${BLUE}Layer 3: API Payload Compression (60-94% savings)${NC}"
+  echo -e "    Headroom:    pip install headroom-ai && headroom wrap claude"
+  echo -e "    ${YELLOW}→ https://github.com/chopratejas/headroom${NC}"
+  echo ""
+  echo -e "  ${BLUE}Layer 4: Codebase Knowledge Graph (49-71x reduction)${NC}"
+  echo -e "    Graphify:    pip install graphifyy && graphify index ."
+  echo -e "    ${YELLOW}→ https://github.com/safishamsi/graphify${NC}"
+  echo ""
+  echo -e "  ${GREEN}Full guide: docs/companion-stack.md${NC}"
+}
+
+# ════════════════════════════════════════════════════════════════
 # Main
 # ════════════════════════════════════════════════════════════════
 
@@ -511,6 +553,7 @@ main() {
   echo ""
 
   # Parse arguments
+  local WITH_COMPANIONS=false
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --agent)
@@ -522,6 +565,10 @@ main() {
         SELECTED_PROFILE="$2"
         echo -e "${CYAN}Using specified profile: ${SELECTED_PROFILE}${NC}"
         shift 2
+        ;;
+      --with-companions)
+        WITH_COMPANIONS=true
+        shift
         ;;
       *)
         shift
@@ -566,6 +613,11 @@ main() {
     esac
   done
 
+  # Companion stack installation
+  if [[ "$WITH_COMPANIONS" == true ]]; then
+    install_companions
+  fi
+
   echo ""
   echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
   echo -e "${GREEN}  ✅ Installation complete!${NC}"
@@ -578,6 +630,7 @@ main() {
   echo -e "  ${YELLOW}Update rules:${NC}    contextsect update"
   echo -e "  ${YELLOW}Disable/enable:${NC}  contextsect disable | contextsect enable"
   echo -e "  ${YELLOW}Check status:${NC}    contextsect status"
+  echo -e "  ${YELLOW}Companions:${NC}      contextsect companions"
   echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 }
 

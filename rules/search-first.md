@@ -36,3 +36,24 @@ Load context in tiers — never jump ahead:
 - Reading a file "just to understand the project"
 - Loading test files when fixing implementation (unless specifically needed)
 - Re-reading a file already in context
+- Ignoring available knowledge graphs and doing raw file reads instead
+
+## Knowledge Graph Awareness
+
+If the project has a pre-built knowledge graph (Graphify, codebase map, AGENTS.md with structure):
+1. **Check first:** Look for `.graphify/`, `codebase.graph`, `ARCHITECTURE.md`, or structured index files
+2. **Query the graph:** Use it to navigate relationships instead of reading raw source files
+3. **Graph > grep > full read:** A graph query costs ~100 tokens. A grep costs ~500. A full file read costs ~5,000.
+4. **Trust the graph for navigation:** Use it to find which files are relevant, THEN read only those targeted sections
+
+If no graph exists:
+- Fall back to search-first protocol (symbol lookup → grep → AST → directory listing)
+- Consider suggesting Graphify setup for repos >100 files
+
+## Structural Navigation Preference
+
+When understanding code relationships:
+1. **Best:** Knowledge graph query (if available) — O(1) lookup
+2. **Good:** LSP/symbol-based navigation (go-to-definition, find-references)
+3. **Acceptable:** Grep for imports/requires to trace dependencies
+4. **Worst:** Reading files sequentially hoping to find connections

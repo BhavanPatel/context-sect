@@ -10,20 +10,41 @@ Prevent context rot in long sessions. Every message re-sends entire conversation
 4. Prefer fresh sessions for unrelated tasks
 
 ## Progressive Loading
-- **Tier 0:** Project structure, config files — always cheap
-- **Tier 1:** Target file(s) from user prompt — load immediately
-- **Tier 2:** Direct dependencies — load on demand
-- **Tier 3:** Transitive dependencies — only if Tier 2 insufficient
-
-Never jump to Tier 3 without exhausting Tier 1 and 2.
+See `search-first` rule for the full Tier 0–3 loading protocol. Summary: never jump to transitive dependencies without exhausting direct ones first.
 
 ## Session Recommendations
-- After 15+ turns: consider fresh session
 - After 5+ full files loaded: recommend targeted continuation
 - If task complete and new task begins: recommend new session
+- After 1 compaction: finish current task, then new session
+- After 2 compactions in one session: stop immediately, fresh session required
+
+See `context-budget` rule for detailed turn-count thresholds and cost math.
+
+## Compaction Survival
+
+When auto-compaction is likely (long sessions, heavy context):
+1. State progress explicitly after each completed step
+2. Reference files by exact path + line number (survives summarization)
+3. Keep a mental "checkpoint" — what's done, what's next
+4. After compaction occurs, verify state before continuing:
+   - Re-read the user's original request (cheap)
+   - Check last file modification timestamps
+   - Don't re-read files unless you're uncertain about their state
+
+## Context Decay Signals
+
+Recognize when context quality is degrading:
+- Repeating yourself or re-asking clarified questions
+- Uncertainty about what's already been changed
+- Tool calls returning "already exists" or "no changes needed"
+- Losing track of which approach was chosen
+
+When these appear → recommend fresh session, don't power through.
 
 ## Anti-Patterns
 - Loading "all related files" preemptively
 - Re-reading files to "refresh memory" (already in context)
 - Keeping debug context when moving to implementation
 - Loading test files AND implementation files when only one set needed
+- Powering through after compaction without verifying state
+- Starting investigation in a session that already did implementation (contexts conflict)

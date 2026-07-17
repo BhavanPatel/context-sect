@@ -3,8 +3,11 @@
 const rules = [
   { name: "output-contract", desc: "Zero filler, diff-only, no narration", input: "—", output: "-40–65%", always: true },
   { name: "diff-only", desc: "SEARCH/REPLACE format, never full files", input: "—", output: "-60–90%", always: true },
-  { name: "search-first", desc: "Targeted search before file reads", input: "-40–80%", output: "-20–30%", always: true },
+  { name: "search-first", desc: "Targeted search before file reads, graph-aware", input: "-40–80%", output: "-20–30%", always: true },
+  { name: "shell-output-hygiene", desc: "Compact flags, filtered command output", input: "-60–90%", output: "—", always: true },
   { name: "loop-breaker", desc: "Halt stuck execution patterns", input: "∞ prevent", output: "∞ prevent", always: true },
+  { name: "tool-selection", desc: "Prefer specific tools, batch calls, MCP hygiene", input: "-20–40%", output: "—", always: true },
+  { name: "context-budget", desc: "Track token spend, compaction survival", input: "-30–50%", output: "indirect", always: true },
   { name: "alignment-gate", desc: "Clarify before complex tasks", input: "-50–70%", output: "-50–70%", always: false },
   { name: "plan-before-act", desc: "Plan multi-file changes", input: "+5%", output: "-50–70%", always: false },
   { name: "investigation-mode", desc: "Evidence-first debugging", input: "-40–60%", output: "-50%", always: false },
@@ -15,7 +18,7 @@ export default function Rules() {
   return (
     <section className="max-w-5xl mx-auto px-6 py-24">
       <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: '#f0f4ff' }}>
-        8 Modular Rules
+        11 Modular Rules
       </h2>
       <p className="text-base mb-10" style={{ color: '#6b7394' }}>
         Each rule works independently. Enable what you need, disable what you don&apos;t.

@@ -6,6 +6,7 @@ import Problem from "../components/Problem";
 import Solution from "../components/Solution";
 import Agents from "../components/Agents";
 import Rules from "../components/Rules";
+import CompanionStack from "../components/CompanionStack";
 import Profiles from "../components/Profiles";
 import Install from "../components/Install";
 import Research from "../components/Research";
@@ -35,6 +36,7 @@ export default function Home() {
         <Reveal delay={0.1}><Solution /></Reveal>
         <Reveal><Agents /></Reveal>
         <Reveal><Rules /></Reveal>
+        <Reveal delay={0.1}><CompanionStack /></Reveal>
         <Reveal><Profiles /></Reveal>
         <Reveal><Install /></Reveal>
         <Reveal><Research /></Reveal>
