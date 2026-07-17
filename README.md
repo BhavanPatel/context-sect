@@ -5,9 +5,9 @@
 
 <p align="center">
   <a href="https://contextsect.vercel.app"><img src="https://img.shields.io/badge/website-contextsect.vercel.app-a78bfa?style=flat-square" alt="Website" /></a>
-  <a href="docs/architecture.md"><img src="https://img.shields.io/badge/version-1.0.0-a78bfa?style=flat-square" alt="Version" /></a>
+  <a href="docs/architecture.md"><img src="https://img.shields.io/badge/version-1.1.0-a78bfa?style=flat-square" alt="Version" /></a>
   <a href="docs/agents.md"><img src="https://img.shields.io/badge/agents-10_supported-10b981?style=flat-square" alt="Agents" /></a>
-  <a href="docs/rules.md"><img src="https://img.shields.io/badge/rules-8_modules-f59e0b?style=flat-square" alt="Rules" /></a>
+  <a href="docs/rules.md"><img src="https://img.shields.io/badge/rules-11_modules-f59e0b?style=flat-square" alt="Rules" /></a>
   <a href="docs/research.md"><img src="https://img.shields.io/badge/research-12_papers-3b82f6?style=flat-square" alt="Research" /></a>
 </p>
 
@@ -149,12 +149,6 @@ ContextSect/
 ├── website/            # contextsect.vercel.app source
 └── install.sh          # Auto-detect + install for all agents
 ```
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=BhavanPatel/ContextSect&type=Date)](https://star-history.com/#BhavanPatel/ContextSect&type=Date)
 
 ---
 
