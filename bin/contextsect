@@ -72,12 +72,122 @@ cmd_update() {
 
   if [[ "$before" == "$after" ]]; then
     echo -e "  ${GREEN}✓${NC} Already up to date."
-  else
-    local count
-    count=$(git log --oneline "$before".."$after" | wc -l | tr -d ' ')
-    echo -e "  ${GREEN}✓${NC} Updated (${count} new commits)"
-    echo ""
-    git log --oneline "$before".."$after" | head -5 | sed 's/^/    /'
+    return 0
+  fi
+
+  local count
+  count=$(git log --oneline "$before".."$after" | wc -l | tr -d ' ')
+  echo -e "  ${GREEN}✓${NC} Updated (${count} new commits)"
+
+  # Detect which agent dirs are currently configured
+  local installed_dirs=()
+  [[ -d "${HOME}/.kiro/steering" ]] && installed_dirs+=("${HOME}/.kiro/steering")
+  [[ -d "${HOME}/.cursor/rules" ]] && installed_dirs+=("${HOME}/.cursor/rules")
+  [[ -d "${HOME}/.windsurf/rules" ]] && installed_dirs+=("${HOME}/.windsurf/rules")
+  [[ -d "${HOME}/.clinerules" ]] && installed_dirs+=("${HOME}/.clinerules")
+
+  # Show change summary
+  echo ""
+  echo -e "  ┌──────────────────────────────────────────────────┐"
+  echo -e "  │  ${CYAN}Changes that will be applied:${NC}                    │"
+  echo -e "  ├──────────────────────────────────────────────────┤"
+  echo ""
+
+  # Compare rules
+  echo -e "  ${BLUE}Rules:${NC}"
+  local source_rules=()
+  for f in "${INSTALL_DIR}/rules/"*.md; do
+    [[ -f "$f" ]] && source_rules+=("$(basename "$f")")
+  done
+
+  # Detect installed rules from first available agent dir
+  local installed_rules=()
+  if [[ ${#installed_dirs[@]} -gt 0 ]]; then
+    local check_dir="${installed_dirs[0]}"
+    for f in "$check_dir"/*.md "$check_dir"/*.mdc; do
+      [[ -f "$f" ]] || continue
+      local fname
+      fname="$(basename "$f")"
+      # Skip profile file
+      [[ "$fname" == "000-profile.md" || "$fname" == "000-profile.mdc" ]] && continue
+      # Strip .mdc extension and leading number prefix for cursor
+      fname="${fname%.mdc}"
+      fname="${fname#[0-9]}"
+      [[ "$fname" == *.md ]] || fname="${fname}.md"
+      installed_rules+=("$fname")
+    done
+  fi
+
+  # Show added
+  for rule in "${source_rules[@]}"; do
+    local found=false
+    for installed in "${installed_rules[@]}"; do
+      [[ "$rule" == "$installed" ]] && found=true && break
+    done
+    if [[ "$found" == false ]]; then
+      echo -e "    ${GREEN}+${NC} ${rule}  ${GREEN}(new)${NC}"
+    fi
+  done
+
+  # Show modified (exists in both — compare content)
+  for rule in "${source_rules[@]}"; do
+    for installed in "${installed_rules[@]}"; do
+      if [[ "$rule" == "$installed" ]]; then
+        local check_dir="${installed_dirs[0]}"
+        local installed_file=""
+        for candidate in "$check_dir"/*"${rule%.md}"*; do
+          [[ -f "$candidate" ]] && installed_file="$candidate" && break
+        done
+        if [[ -n "$installed_file" ]] && ! diff -q "${INSTALL_DIR}/rules/${rule}" "$installed_file" &>/dev/null; then
+          echo -e "    ${YELLOW}~${NC} ${rule}  ${YELLOW}(modified)${NC}"
+        else
+          echo -e "    ·  ${rule}  (unchanged)"
+        fi
+        break
+      fi
+    done
+  done
+
+  # Show removed (installed but no longer in source)
+  for installed in "${installed_rules[@]}"; do
+    local found=false
+    for rule in "${source_rules[@]}"; do
+      [[ "$rule" == "$installed" ]] && found=true && break
+    done
+    if [[ "$found" == false ]]; then
+      echo -e "    ${RED}-${NC} ${installed}  ${RED}(removed)${NC}"
+    fi
+  done
+
+  # Hooks
+  echo ""
+  echo -e "  ${BLUE}Hooks:${NC}"
+  if [[ -f "${INSTALL_DIR}/adapters/kiro-hooks.json" ]]; then
+    if [[ -f "${HOME}/.kiro/hooks/token-optimization.json" ]]; then
+      if ! diff -q "${INSTALL_DIR}/adapters/kiro-hooks.json" "${HOME}/.kiro/hooks/token-optimization.json" &>/dev/null; then
+        echo -e "    ${YELLOW}~${NC} token-optimization.json  ${YELLOW}(modified)${NC}"
+      else
+        echo -e "    ·  token-optimization.json  (unchanged)"
+      fi
+    else
+      echo -e "    ${GREEN}+${NC} token-optimization.json  ${GREEN}(new)${NC}"
+    fi
+  fi
+
+  # Profile
+  echo ""
+  echo -e "  ${BLUE}Profile:${NC}"
+  echo -e "    ${YELLOW}~${NC} 000-profile.md  ${YELLOW}(regenerated)${NC}"
+
+  echo ""
+  echo -e "  └──────────────────────────────────────────────────┘"
+
+  echo ""
+  read -rp "  Proceed with reinstall? [Y/n]: " confirm </dev/tty
+  if [[ "$confirm" =~ ^[Nn] ]]; then
+    echo -e "  ${YELLOW}Skipped reinstall. Rules pulled but not applied.${NC}"
+    echo -e "  Run 'contextsect install' when ready."
+    return 0
   fi
 
   echo ""

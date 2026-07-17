@@ -279,12 +279,29 @@ combine_rules() {
   echo "$output"
 }
 
-backup_if_exists() {
-  local path="$1"
-  if [[ -e "$path" ]]; then
-    cp "$path" "${path}.bak.$(date +%s)"
-    echo -e "    ${YELLOW}↳ Backed up existing: $(basename "$path")${NC}"
-  fi
+# Removes rule files that no longer exist in source
+cleanup_removed_rules() {
+  local target_dir="$1"
+  local ext="$2"  # md or mdc
+
+  for installed_file in "${target_dir}"/*.${ext}; do
+    [[ -f "$installed_file" ]] || continue
+    local fname
+    fname="$(basename "$installed_file")"
+
+    # Skip profile file
+    [[ "$fname" == "000-profile.md" || "$fname" == "000-profile.mdc" ]] && continue
+
+    # Strip cursor prefix (e.g., "9context-hygiene.mdc" -> "context-hygiene")
+    local base="${fname%.${ext}}"
+    base="${base#[0-9]}"
+
+    # Check if source rule still exists
+    if [[ ! -f "${RULES_DIR}/${base}.md" ]]; then
+      rm -f "$installed_file"
+      echo -e "    ${RED}✗${NC} ${fname} (removed — rule no longer exists)"
+    fi
+  done
 }
 
 install_kiro() {
@@ -294,7 +311,6 @@ install_kiro() {
 
   # Profile steering file
   local profile_file="${target}/steering/000-profile.md"
-  backup_if_exists "$profile_file"
   generate_profile_header > "$profile_file"
   echo -e "    ${GREEN}✓${NC} steering/000-profile.md (${SELECTED_PROFILE})"
 
@@ -303,14 +319,15 @@ install_kiro() {
     [[ -f "$rule_file" ]] || continue
     local name
     name="$(basename "$rule_file")"
-    backup_if_exists "${target}/steering/${name}"
     cp "$rule_file" "${target}/steering/${name}"
     echo -e "    ${GREEN}✓${NC} steering/${name}"
   done
 
+  # Cleanup removed rules
+  cleanup_removed_rules "${target}/steering" "md"
+
   # Hook
   if [[ -f "${ADAPTERS_DIR}/kiro-hooks.json" ]]; then
-    backup_if_exists "${target}/hooks/token-optimization.json"
     cp "${ADAPTERS_DIR}/kiro-hooks.json" "${target}/hooks/token-optimization.json"
     echo -e "    ${GREEN}✓${NC} hooks/token-optimization.json"
   fi
@@ -342,7 +359,6 @@ install_claude_code() {
 
   # Global CLAUDE.md
   local claude_md="${target}/CLAUDE.md"
-  backup_if_exists "$claude_md"
 
   {
     echo "# Token Optimization Rules"
@@ -362,7 +378,6 @@ install_cursor() {
 
   # Profile file (loaded first due to 000 prefix)
   local profile_mdc="${target}/000-profile.mdc"
-  backup_if_exists "$profile_mdc"
   {
     echo "---"
     echo "description: \"ContextSect active profile: ${SELECTED_PROFILE}\""
@@ -379,7 +394,6 @@ install_cursor() {
     local name
     name="$(basename "$rule_file" .md)"
     local mdc_file="${target}/9${name}.mdc"
-    backup_if_exists "$mdc_file"
 
     # Create .mdc with YAML frontmatter
     {
@@ -393,6 +407,9 @@ install_cursor() {
     } > "$mdc_file"
     echo -e "    ${GREEN}✓${NC} .cursor/rules/9${name}.mdc"
   done
+
+  # Cleanup removed rules
+  cleanup_removed_rules "${target}" "mdc"
 }
 
 install_windsurf() {
@@ -404,10 +421,12 @@ install_windsurf() {
     [[ -f "$rule_file" ]] || continue
     local name
     name="$(basename "$rule_file")"
-    backup_if_exists "${target}/${name}"
     cp "$rule_file" "${target}/${name}"
     echo -e "    ${GREEN}✓${NC} .windsurf/rules/${name}"
   done
+
+  # Cleanup removed rules
+  cleanup_removed_rules "${target}" "md"
 }
 
 install_cline() {
@@ -419,17 +438,18 @@ install_cline() {
     [[ -f "$rule_file" ]] || continue
     local name
     name="$(basename "$rule_file")"
-    backup_if_exists "${target}/${name}"
     cp "$rule_file" "${target}/${name}"
     echo -e "    ${GREEN}✓${NC} .clinerules/${name}"
   done
+
+  # Cleanup removed rules
+  cleanup_removed_rules "${target}" "md"
 }
 
 install_opencode() {
   echo -e "\n  ${BLUE}Installing for OpenCode...${NC}"
   local target="${HOME}"
   local opencode_md="${target}/opencode.md"
-  backup_if_exists "$opencode_md"
 
   {
     echo "# Token Optimization Rules"
@@ -443,7 +463,6 @@ install_aider() {
   echo -e "\n  ${BLUE}Installing for Aider...${NC}"
   local target="${HOME}"
   local conventions="${target}/.aider.conventions.md"
-  backup_if_exists "$conventions"
 
   {
     echo "# Token Optimization Conventions"
@@ -474,7 +493,6 @@ install_roocode() {
     [[ -f "$rule_file" ]] || continue
     local name
     name="$(basename "$rule_file")"
-    backup_if_exists "${target}/${name}"
     cp "$rule_file" "${target}/${name}"
     echo -e "    ${GREEN}✓${NC} .roo/rules/${name}"
   done
@@ -486,7 +504,6 @@ install_github_copilot() {
   local target="${HOME}/.github"
   mkdir -p "${target}"
   local instructions="${target}/copilot-instructions.md"
-  backup_if_exists "$instructions"
 
   {
     echo "# Token Optimization Rules"
@@ -500,7 +517,6 @@ install_codex() {
   echo -e "\n  ${BLUE}Installing for OpenAI Codex...${NC}"
   local target="${HOME}"
   local agents_md="${target}/AGENTS.md"
-  backup_if_exists "$agents_md"
 
   {
     echo "# Token Optimization Rules"
