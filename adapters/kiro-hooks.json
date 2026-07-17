@@ -43,6 +43,28 @@
         "prompt": "OUTPUT FORMAT: Present changes as SEARCH/REPLACE blocks showing only changed lines with context. Never output entire files for partial changes."
       },
       "enabled": true
+    },
+    {
+      "name": "shell-output-hygiene",
+      "description": "Enforces compact command output to prevent context flooding.",
+      "trigger": "PreToolUse",
+      "matcher": "execute_bash|bash|terminal|shell",
+      "action": {
+        "type": "agent",
+        "prompt": "SHELL HYGIENE: Before running this command, verify: (1) using compact flags where available (--short, -q, --oneline, --reporter=dot), (2) piping through head/tail/grep if output could exceed 50 lines, (3) NOT dumping full test/build output when a summary flag exists. If verbose output is needed, filter to relevant section only."
+      },
+      "enabled": true
+    },
+    {
+      "name": "context-budget-guard",
+      "description": "Prevents context overload by tracking file read volume.",
+      "trigger": "PreToolUse",
+      "matcher": "read_file|read_files|fs_read|file_read",
+      "action": {
+        "type": "agent",
+        "prompt": "CONTEXT BUDGET: Before loading this content, verify: (1) not already in context from a previous read, (2) this read is necessary for the CURRENT task (not speculative), (3) if 5+ files already loaded this session, confirm this read is essential. If context is heavy, prefer targeted section reads over full files."
+      },
+      "enabled": true
     }
   ]
 }
