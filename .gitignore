@@ -7,3 +7,6 @@ website/node_modules/
 website/.next/
 website/out/
 website/*.tsbuildinfo
+
+# kiro
+.kiro
