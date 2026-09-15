@@ -80,3 +80,42 @@ AI coding agents waste tokens in five systematic ways:
 | **Session accumulation** | 30–50% over long sessions | Old context never pruned, resent every turn |
 
 These problems are **agent-agnostic** — they happen in Kiro, Claude Code, Cursor, and every other tool the same way.
+
+
+---
+
+## The Third Lever: Cache Stability
+
+The two-pillar model above treats input cost as a function of **how much** context is loaded. That is incomplete. Provider prompt caching means input cost is also a function of **how stable** the context is.
+
+Cache reads cost roughly 10% of normal input price. Matching is a byte-exact prefix comparison, so a single changed character early in the prompt invalidates every cached token after it.
+
+```
+Input tokens (uncached):    $3.00 per million
+Input tokens (cache read):  ~$0.30 per million   ← 10x cheaper
+```
+
+This reframes the always-on cost of rules:
+
+| Action | Effect |
+|---|---|
+| Remove 30% of a stable prefix | ~30% off an already-discounted rate |
+| Change one byte early in the prefix | full price on 100% of it |
+
+**Stability dominates size.** A larger stable prefix is cheaper than a smaller volatile one.
+
+### What this changed in the implementation
+
+1. **No timestamp in the profile header.** `install.sh` previously wrote `# Generated: <date>` at the top of `000-profile.md`, the first file in the cached prefix. That invalidated the cache daily, for no benefit.
+2. **Deterministic rule ordering.** Rules are enumerated with `LC_ALL=C sort` rather than locale-dependent glob order, so the prefix is byte-identical across machines and runs.
+
+The `cache-stability` rule extends the same discipline to runtime behaviour: append rather than edit, cite `path:line` rather than paste changing content, and never re-summarise history into the prefix.
+
+### Why this is the honest answer to "it's always loaded"
+
+The criticism assumes always-on content is charged at full price every turn. With a stable prefix it is charged at roughly a tenth. So the answer is two-part:
+
+1. Load less — tiering cuts always-on content from 14 rules to 2 (see [tiering.md](tiering.md))
+2. Keep what remains byte-stable, so it bills at cache-read rates
+
+Neither alone is sufficient. Tiering without stability just shrinks a full-price payload; stability without tiering pays a discounted rate on content that was never needed.

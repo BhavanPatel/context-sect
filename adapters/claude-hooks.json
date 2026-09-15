@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'ALIGNMENT GATE: If this prompt is vague, multi-interpretation, or touches 3+ files, reply with Objective + Path (2-5 steps) + ONE high-impact question and wait. If specific, proceed. If a question, answer directly.'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SEARCH-FIRST: Only read the full file if it is under 50 lines, you already located the target section, it is a config file, or the user asked. Otherwise search first and read the targeted section.'"
+          },
+          {
+            "type": "command",
+            "command": "echo 'CONTEXT BUDGET: Skip this read if the content is already in context or the read is speculative. Past 5 files loaded, prefer targeted section reads.'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'OUTPUT FORMAT: Present changes as SEARCH/REPLACE blocks with 2-3 context lines. Never reprint a whole file for a partial change.'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SHELL HYGIENE: Use compact flags (-s, -q, --oneline, --reporter=dot) and pipe through head/tail/grep if output could exceed 50 lines. Scout with a summary before going verbose.'"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'LOOP CHECK: Confirm this is not a repeat of an identical call, not the same error a third time, and that it yields new information. If not, stop and report the blocker.'"
+          }
+        ]
+      }
+    ]
+  }
+}

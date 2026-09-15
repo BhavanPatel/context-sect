@@ -26,7 +26,7 @@ usage() {
   echo "    status           Show current installation status"
   echo "    disable          Temporarily disable all rules (keeps files, renames them)"
   echo "    enable           Re-enable previously disabled rules"
-  echo "    uninstall        Remove all ContextSect rules from agents"
+  echo "    uninstall        Remove all rules from agents (-y skips prompts, --purge also removes CLI)"
   echo "    companions       Show companion tools for maximum token savings"
   echo "    version          Show version"
   echo "    help             Show this help"
@@ -79,13 +79,6 @@ cmd_update() {
   count=$(git log --oneline "$before".."$after" | wc -l | tr -d ' ')
   echo -e "  ${GREEN}✓${NC} Updated (${count} new commits)"
 
-  # Detect which agent dirs are currently configured
-  local installed_dirs=()
-  [[ -d "${HOME}/.kiro/steering" ]] && installed_dirs+=("${HOME}/.kiro/steering")
-  [[ -d "${HOME}/.cursor/rules" ]] && installed_dirs+=("${HOME}/.cursor/rules")
-  [[ -d "${HOME}/.windsurf/rules" ]] && installed_dirs+=("${HOME}/.windsurf/rules")
-  [[ -d "${HOME}/.clinerules" ]] && installed_dirs+=("${HOME}/.clinerules")
-
   # Show change summary
   echo ""
   echo -e "  ┌──────────────────────────────────────────────────┐"
@@ -93,70 +86,44 @@ cmd_update() {
   echo -e "  ├──────────────────────────────────────────────────┤"
   echo ""
 
-  # Compare rules
+  # Rules, reported by activation tier. Comparing against a single agent
+  # directory no longer works: since tiering, most rules do not live in
+  # steering at all, so a plain directory listing reports them as missing.
   echo -e "  ${BLUE}Rules:${NC}"
-  local source_rules=()
-  for f in "${INSTALL_DIR}/rules/"*.md; do
-    [[ -f "$f" ]] && source_rules+=("$(basename "$f")")
-  done
+  local name tier src installed
+  while IFS= read -r name; do
+    tier="$(get_rule_tier "$name")"
+    src="${INSTALL_DIR}/rules/${name}.md"
 
-  # Detect installed rules from first available agent dir
-  local installed_rules=()
-  if [[ ${#installed_dirs[@]} -gt 0 ]]; then
-    local check_dir="${installed_dirs[0]}"
-    for f in "$check_dir"/*.md "$check_dir"/*.mdc; do
-      [[ -f "$f" ]] || continue
-      local fname
-      fname="$(basename "$f")"
-      # Skip profile file
-      [[ "$fname" == "000-profile.md" || "$fname" == "000-profile.mdc" ]] && continue
-      # Strip .mdc extension and leading number prefix for cursor
-      fname="${fname%.mdc}"
-      fname="${fname#[0-9]}"
-      [[ "$fname" == *.md ]] || fname="${fname}.md"
-      installed_rules+=("$fname")
-    done
-  fi
+    case "$tier" in
+      hook)
+        echo -e "    ·  ${name}  ${CYAN}(hook — fires on event)${NC}"
+        continue
+        ;;
+      steering) installed="${HOME}/.kiro/steering/${name}.md" ;;
+      skill)    installed="${HOME}/.kiro/skills/${name}/SKILL.md" ;;
+    esac
 
-  # Show added
-  for rule in "${source_rules[@]}"; do
-    local found=false
-    for installed in "${installed_rules[@]}"; do
-      [[ "$rule" == "$installed" ]] && found=true && break
-    done
-    if [[ "$found" == false ]]; then
-      echo -e "    ${GREEN}+${NC} ${rule}  ${GREEN}(new)${NC}"
+    if [[ ! -f "$installed" ]]; then
+      echo -e "    ${GREEN}+${NC} ${name}  ${GREEN}(new — ${tier})${NC}"
+    elif diff -q "$src" <(sed -n '/^# /,$p' "$installed") &>/dev/null; then
+      echo -e "    ·  ${name}  (unchanged — ${tier})"
+    else
+      echo -e "    ${YELLOW}~${NC} ${name}  ${YELLOW}(modified — ${tier})${NC}"
     fi
-  done
+  done < <(
+    for _f in "${INSTALL_DIR}/rules/"*.md; do
+      [[ -f "$_f" ]] && basename "$_f" .md
+    done | LC_ALL=C sort
+  )
 
-  # Show modified (exists in both — compare content)
-  for rule in "${source_rules[@]}"; do
-    for installed in "${installed_rules[@]}"; do
-      if [[ "$rule" == "$installed" ]]; then
-        local check_dir="${installed_dirs[0]}"
-        local installed_file=""
-        for candidate in "$check_dir"/*"${rule%.md}"*; do
-          [[ -f "$candidate" ]] && installed_file="$candidate" && break
-        done
-        if [[ -n "$installed_file" ]] && ! diff -q "${INSTALL_DIR}/rules/${rule}" "$installed_file" &>/dev/null; then
-          echo -e "    ${YELLOW}~${NC} ${rule}  ${YELLOW}(modified)${NC}"
-        else
-          echo -e "    ·  ${rule}  (unchanged)"
-        fi
-        break
-      fi
-    done
-  done
-
-  # Show removed (installed but no longer in source)
-  for installed in "${installed_rules[@]}"; do
-    local found=false
-    for rule in "${source_rules[@]}"; do
-      [[ "$rule" == "$installed" ]] && found=true && break
-    done
-    if [[ "$found" == false ]]; then
-      echo -e "    ${RED}-${NC} ${installed}  ${RED}(removed)${NC}"
-    fi
+  # Anything installed previously that no longer exists in source
+  local base
+  for _f in "${HOME}/.kiro/steering/"*.md; do
+    [[ -f "$_f" ]] || continue
+    base="$(basename "$_f" .md)"
+    [[ "$base" == "000-profile" ]] && continue
+    [[ -f "${INSTALL_DIR}/rules/${base}.md" ]] || echo -e "    ${RED}-${NC} ${base}  ${RED}(removed)${NC}"
   done
 
   # Hooks
@@ -265,6 +232,19 @@ cmd_status() {
     profile=$(grep "Active Profile:" "${HOME}/.claude/CLAUDE.md" 2>/dev/null | sed 's/.*Active Profile: //')
   fi
   echo -e "  Profile: ${GREEN}${profile}${NC}"
+
+  # Rule tiers — shows how much is actually always-on
+  local rule tier n_steering=0 n_hook=0 n_skill=0
+  for rule in "${RULE_NAMES[@]}"; do
+    tier="$(get_rule_tier "$rule")"
+    case "$tier" in
+      steering) n_steering=$((n_steering + 1)) ;;
+      hook)     n_hook=$((n_hook + 1)) ;;
+      skill)    n_skill=$((n_skill + 1)) ;;
+    esac
+  done
+  echo -e "  Rules:   ${#RULE_NAMES[@]} total"
+  echo -e "           ${GREEN}${n_steering}${NC} always-on · ${CYAN}${n_hook}${NC} event-triggered · ${CYAN}${n_skill}${NC} on-demand"
   echo ""
 
   # Check which agents have rules installed
@@ -284,104 +264,107 @@ cmd_status() {
 }
 
 cmd_uninstall() {
-  echo -e "  ${YELLOW}This will remove ContextSect rules from all agents.${NC}"
-  read -rp "  Continue? [y/N]: " confirm </dev/tty
+  # --yes skips the prompts. Needed for automation and testing: the prompts
+  # read from /dev/tty, so they cannot be fed by a pipe or heredoc.
+  # --purge also removes the CLI itself.
+  local assume_yes=false purge=false arg
+  for arg in "$@"; do
+    case "$arg" in
+      -y|--yes) assume_yes=true ;;
+      --purge)  purge=true ;;
+    esac
+  done
 
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-    echo "  Cancelled."
-    exit 0
+  echo -e "  ${YELLOW}This will remove ContextSect rules from all agents.${NC}"
+  echo -e "  ${CYAN}Content you wrote outside the managed block is preserved.${NC}"
+
+  if [[ "$assume_yes" != true ]]; then
+    read -rp "  Continue? [y/N]: " confirm </dev/tty
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "  Cancelled."
+      exit 0
+    fi
   fi
 
   echo ""
+  local rule removed file dir
 
-  # Remove Kiro rules
-  if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
-    rm -f "${HOME}/.kiro/steering/000-profile.md"
-    rm -f "${HOME}/.kiro/steering/alignment-gate.md"
-    rm -f "${HOME}/.kiro/steering/context-hygiene.md"
-    rm -f "${HOME}/.kiro/steering/diff-only.md"
-    rm -f "${HOME}/.kiro/steering/investigation-mode.md"
-    rm -f "${HOME}/.kiro/steering/loop-breaker.md"
-    rm -f "${HOME}/.kiro/steering/output-contract.md"
-    rm -f "${HOME}/.kiro/steering/plan-before-act.md"
-    rm -f "${HOME}/.kiro/steering/search-first.md"
-    rm -rf "${HOME}/.kiro/skills/alignment-gate"
-    rm -rf "${HOME}/.kiro/skills/context-hygiene"
-    rm -rf "${HOME}/.kiro/skills/diff-only"
-    rm -rf "${HOME}/.kiro/skills/investigation-mode"
-    rm -rf "${HOME}/.kiro/skills/loop-breaker"
-    rm -rf "${HOME}/.kiro/skills/output-contract"
-    rm -rf "${HOME}/.kiro/skills/plan-before-act"
-    rm -rf "${HOME}/.kiro/skills/search-first"
-    rm -f "${HOME}/.kiro/hooks/token-optimization.json"
-    echo -e "  ${GREEN}✓${NC} Removed Kiro rules"
+  # Kiro — steering, skills and hooks. Skills are removed only when they carry
+  # the managed marker, so hand-written skills survive.
+  removed=false
+  if [[ -d "${HOME}/.kiro" ]]; then
+    [[ -f "${HOME}/.kiro/steering/000-profile.md" ]] && rm -f "${HOME}/.kiro/steering/000-profile.md" && removed=true
+    for rule in "${RULE_NAMES[@]}"; do
+      [[ -f "${HOME}/.kiro/steering/${rule}.md" ]] && rm -f "${HOME}/.kiro/steering/${rule}.md" && removed=true
+      if [[ -f "${HOME}/.kiro/skills/${rule}/SKILL.md" ]] && grep -qF "$CS_MARKER" "${HOME}/.kiro/skills/${rule}/SKILL.md" 2>/dev/null; then
+        rm -rf "${HOME}/.kiro/skills/${rule}" && removed=true
+      fi
+    done
+    [[ -f "${HOME}/.kiro/hooks/token-optimization.json" ]] && rm -f "${HOME}/.kiro/hooks/token-optimization.json" && removed=true
+    [[ "$removed" == true ]] && echo -e "  ${GREEN}✓${NC} Removed Kiro rules, skills and hooks"
   fi
 
-  # Remove Claude Code
-  if [[ -f "${HOME}/.claude/CLAUDE.md" ]] && grep -q "ContextSect" "${HOME}/.claude/CLAUDE.md" 2>/dev/null; then
-    rm -f "${HOME}/.claude/CLAUDE.md"
-    echo -e "  ${GREEN}✓${NC} Removed Claude Code rules"
+  # Claude Code — skills and hooks (CLAUDE.md handled with the combined files)
+  removed=false
+  for rule in "${RULE_NAMES[@]}"; do
+    if [[ -f "${HOME}/.claude/skills/${rule}/SKILL.md" ]] && grep -qF "$CS_MARKER" "${HOME}/.claude/skills/${rule}/SKILL.md" 2>/dev/null; then
+      rm -rf "${HOME}/.claude/skills/${rule}" && removed=true
+    fi
+  done
+  [[ -f "${HOME}/.claude/contextsect-hooks.json" ]] && rm -f "${HOME}/.claude/contextsect-hooks.json" && removed=true
+  if [[ -f "${HOME}/.claude/settings.json" ]]; then
+    if command -v jq &>/dev/null; then
+      if jq 'del(.hooks)' "${HOME}/.claude/settings.json" > "${HOME}/.claude/settings.json.tmp" 2>/dev/null; then
+        mv "${HOME}/.claude/settings.json.tmp" "${HOME}/.claude/settings.json"
+        removed=true
+      else
+        rm -f "${HOME}/.claude/settings.json.tmp"
+        echo -e "  ${YELLOW}⚠${NC} Could not parse settings.json — remove its \"hooks\" key manually"
+      fi
+    else
+      echo -e "  ${YELLOW}⚠${NC} jq not found — remove the \"hooks\" key from ~/.claude/settings.json manually"
+    fi
   fi
+  [[ "$removed" == true ]] && echo -e "  ${GREEN}✓${NC} Removed Claude Code skills and hooks"
 
-  # Remove Cursor
+  # Cursor
   if [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]]; then
     rm -f "${HOME}/.cursor/rules/000-profile.mdc"
-    rm -f "${HOME}/.cursor/rules/"9*.mdc
+    for rule in "${RULE_NAMES[@]}"; do
+      rm -f "${HOME}/.cursor/rules/9${rule}.mdc"
+    done
     echo -e "  ${GREEN}✓${NC} Removed Cursor rules"
   fi
 
-  # Remove Windsurf
-  if [[ -d "${HOME}/.windsurf/rules" ]]; then
-    rm -f "${HOME}/.windsurf/rules/alignment-gate.md"
-    rm -f "${HOME}/.windsurf/rules/context-hygiene.md"
-    rm -f "${HOME}/.windsurf/rules/diff-only.md"
-    rm -f "${HOME}/.windsurf/rules/investigation-mode.md"
-    rm -f "${HOME}/.windsurf/rules/loop-breaker.md"
-    rm -f "${HOME}/.windsurf/rules/output-contract.md"
-    rm -f "${HOME}/.windsurf/rules/plan-before-act.md"
-    rm -f "${HOME}/.windsurf/rules/search-first.md"
-    echo -e "  ${GREEN}✓${NC} Removed Windsurf rules"
-  fi
+  # Combined single-file agents — strip only the managed block, never the file
+  for file in "${COMBINED_FILES[@]}"; do
+    if strip_managed_block "$file"; then
+      if [[ -f "$file" ]]; then
+        echo -e "  ${GREEN}✓${NC} ${file/#$HOME/~} — block removed, your content kept"
+      else
+        echo -e "  ${GREEN}✓${NC} ${file/#$HOME/~} — removed"
+      fi
+    fi
+  done
 
-  # Remove Cline
-  if [[ -d "${HOME}/.clinerules" ]]; then
-    rm -f "${HOME}/.clinerules/alignment-gate.md"
-    rm -f "${HOME}/.clinerules/context-hygiene.md"
-    rm -f "${HOME}/.clinerules/diff-only.md"
-    rm -f "${HOME}/.clinerules/investigation-mode.md"
-    rm -f "${HOME}/.clinerules/loop-breaker.md"
-    rm -f "${HOME}/.clinerules/output-contract.md"
-    rm -f "${HOME}/.clinerules/plan-before-act.md"
-    rm -f "${HOME}/.clinerules/search-first.md"
-    echo -e "  ${GREEN}✓${NC} Removed Cline rules"
-  fi
-
-  # Remove RooCode
-  if [[ -d "${HOME}/.roo/rules" ]]; then
-    rm -f "${HOME}/.roo/rules/alignment-gate.md"
-    rm -f "${HOME}/.roo/rules/context-hygiene.md"
-    rm -f "${HOME}/.roo/rules/diff-only.md"
-    rm -f "${HOME}/.roo/rules/investigation-mode.md"
-    rm -f "${HOME}/.roo/rules/loop-breaker.md"
-    rm -f "${HOME}/.roo/rules/output-contract.md"
-    rm -f "${HOME}/.roo/rules/plan-before-act.md"
-    rm -f "${HOME}/.roo/rules/search-first.md"
-    echo -e "  ${GREEN}✓${NC} Removed RooCode rules"
-  fi
-
-  # Remove others (only if they contain ContextSect marker)
-  [[ -f "${HOME}/opencode.md" ]] && grep -q "ContextSect" "${HOME}/opencode.md" 2>/dev/null && rm -f "${HOME}/opencode.md" && echo -e "  ${GREEN}✓${NC} Removed OpenCode rules"
-  [[ -f "${HOME}/.aider.conventions.md" ]] && grep -q "ContextSect" "${HOME}/.aider.conventions.md" 2>/dev/null && rm -f "${HOME}/.aider.conventions.md" && echo -e "  ${GREEN}✓${NC} Removed Aider rules"
-  [[ -f "${HOME}/.github/copilot-instructions.md" ]] && grep -q "ContextSect" "${HOME}/.github/copilot-instructions.md" 2>/dev/null && rm -f "${HOME}/.github/copilot-instructions.md" && echo -e "  ${GREEN}✓${NC} Removed GitHub Copilot rules"
-  [[ -f "${HOME}/AGENTS.md" ]] && grep -q "ContextSect" "${HOME}/AGENTS.md" 2>/dev/null && rm -f "${HOME}/AGENTS.md" && echo -e "  ${GREEN}✓${NC} Removed Codex rules"
+  # Legacy per-rule files from versions before consolidation
+  for dir in "${HOME}/.windsurf/rules" "${HOME}/.clinerules" "${HOME}/.roo/rules"; do
+    [[ -d "$dir" ]] || continue
+    for rule in "${RULE_NAMES[@]}"; do
+      rm -f "${dir}/${rule}.md"
+    done
+  done
 
   # Remove CLI
   echo ""
-  echo -e "  ${YELLOW}Remove the CLI itself?${NC}"
-  read -rp "  Remove ~/.contextsect and CLI command? [y/N]: " confirm2 </dev/tty
-  if [[ "$confirm2" == "y" || "$confirm2" == "Y" ]]; then
+  if [[ "$purge" != true && "$assume_yes" != true ]]; then
+    echo -e "  ${YELLOW}Remove the CLI itself?${NC}"
+    read -rp "  Remove ~/.contextsect and CLI command? [y/N]: " confirm2 </dev/tty
+    [[ "$confirm2" == "y" || "$confirm2" == "Y" ]] && purge=true
+  fi
+
+  if [[ "$purge" == true ]]; then
     rm -rf "$INSTALL_DIR"
-    # Try to remove symlink
     rm -f "/usr/local/bin/contextsect" 2>/dev/null || rm -f "${HOME}/.local/bin/contextsect" 2>/dev/null || true
     echo -e "  ${GREEN}✓${NC} Fully uninstalled"
   else
@@ -394,7 +377,66 @@ cmd_uninstall() {
 # State file to track disabled status
 STATE_FILE="${INSTALL_DIR}/.disabled"
 
-RULE_NAMES=("alignment-gate" "context-hygiene" "diff-only" "investigation-mode" "loop-breaker" "output-contract" "plan-before-act" "search-first")
+# Rule names are derived from the source tree, never hardcoded. The previous
+# hardcoded list had drifted and was missing context-budget,
+# shell-output-hygiene and tool-selection, so disable/enable/uninstall
+# silently left those files behind.
+RULE_NAMES=()
+while IFS= read -r _rule; do
+  RULE_NAMES+=("$_rule")
+done < <(
+  for _f in "${INSTALL_DIR}/rules/"*.md; do
+    [[ -f "$_f" ]] && basename "$_f" .md
+  done | LC_ALL=C sort
+)
+
+# Tier lookup — keep in sync with get_rule_tier() in install.sh
+get_rule_tier() {
+  case "$1" in
+    output-contract|cache-stability) echo "steering" ;;
+    alignment-gate|loop-breaker|search-first|shell-output-hygiene|context-budget|diff-only) echo "hook" ;;
+    plan-before-act|investigation-mode|context-hygiene|tool-selection|subagent-isolation|session-handover) echo "skill" ;;
+    *) echo "steering" ;;
+  esac
+}
+
+CS_BEGIN="<!-- BEGIN contextsect (managed — edits inside are overwritten) -->"
+CS_END="<!-- END contextsect -->"
+CS_MARKER="<!-- contextsect:managed -->"
+
+# Combined files can hold user content alongside the managed block, so remove
+# only the block. If nothing else remains, remove the file.
+strip_managed_block() {
+  local file="$1"
+  [[ -f "$file" ]] || return 1
+  grep -qF "$CS_BEGIN" "$file" 2>/dev/null || return 1
+
+  local remainder
+  remainder="$(awk -v b="$CS_BEGIN" -v e="$CS_END" '
+    $0 == b { skip = 1; next }
+    $0 == e { skip = 0; next }
+    !skip   { print }
+  ' "$file")"
+
+  if [[ -z "${remainder//[[:space:]]/}" ]]; then
+    rm -f "$file"
+  else
+    printf '%s\n' "$remainder" > "${file}.tmp" && mv "${file}.tmp" "$file"
+  fi
+  return 0
+}
+
+# Every file written by install_combined / install_claude_code
+COMBINED_FILES=(
+  "${HOME}/.claude/CLAUDE.md"
+  "${HOME}/.windsurf/rules/contextsect.md"
+  "${HOME}/.clinerules/contextsect.md"
+  "${HOME}/.roo/rules/contextsect.md"
+  "${HOME}/opencode.md"
+  "${HOME}/.aider.conventions.md"
+  "${HOME}/.github/copilot-instructions.md"
+  "${HOME}/AGENTS.md"
+)
 
 cmd_disable() {
   if [[ -f "$STATE_FILE" ]]; then
@@ -405,52 +447,59 @@ cmd_disable() {
   echo -e "  ${CYAN}Disabling ContextSect rules...${NC}"
   echo ""
 
-  # Kiro — rename steering files
+  # Kiro — rename steering files, managed skills and hooks
+  local rule
   if [[ -f "${HOME}/.kiro/steering/000-profile.md" ]]; then
     mv "${HOME}/.kiro/steering/000-profile.md" "${HOME}/.kiro/steering/000-profile.md.disabled"
     for rule in "${RULE_NAMES[@]}"; do
       [[ -f "${HOME}/.kiro/steering/${rule}.md" ]] && mv "${HOME}/.kiro/steering/${rule}.md" "${HOME}/.kiro/steering/${rule}.md.disabled"
+      if [[ -f "${HOME}/.kiro/skills/${rule}/SKILL.md" ]] && grep -qF "$CS_MARKER" "${HOME}/.kiro/skills/${rule}/SKILL.md" 2>/dev/null; then
+        mv "${HOME}/.kiro/skills/${rule}/SKILL.md" "${HOME}/.kiro/skills/${rule}/SKILL.md.disabled"
+      fi
     done
+    [[ -f "${HOME}/.kiro/hooks/token-optimization.json" ]] && mv "${HOME}/.kiro/hooks/token-optimization.json" "${HOME}/.kiro/hooks/token-optimization.json.disabled"
     echo -e "  ${GREEN}✓${NC} Kiro — disabled"
   fi
 
-  # Claude Code — rename CLAUDE.md
-  if [[ -f "${HOME}/.claude/CLAUDE.md" ]] && grep -q "ContextSect" "${HOME}/.claude/CLAUDE.md" 2>/dev/null; then
-    mv "${HOME}/.claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md.disabled"
-    echo -e "  ${GREEN}✓${NC} Claude Code — disabled"
+  # Claude Code — managed skills and hooks. CLAUDE.md is handled below with the
+  # other combined files, so user content is never renamed away with it.
+  for rule in "${RULE_NAMES[@]}"; do
+    if [[ -f "${HOME}/.claude/skills/${rule}/SKILL.md" ]] && grep -qF "$CS_MARKER" "${HOME}/.claude/skills/${rule}/SKILL.md" 2>/dev/null; then
+      mv "${HOME}/.claude/skills/${rule}/SKILL.md" "${HOME}/.claude/skills/${rule}/SKILL.md.disabled"
+    fi
+  done
+  if command -v jq &>/dev/null && [[ -f "${HOME}/.claude/settings.json" ]]; then
+    if jq -e '.hooks' "${HOME}/.claude/settings.json" &>/dev/null; then
+      if jq '.contextsectHooksDisabled = .hooks | del(.hooks)' "${HOME}/.claude/settings.json" > "${HOME}/.claude/settings.json.tmp" 2>/dev/null; then
+        mv "${HOME}/.claude/settings.json.tmp" "${HOME}/.claude/settings.json"
+        echo -e "  ${GREEN}✓${NC} Claude Code hooks — disabled"
+      else
+        rm -f "${HOME}/.claude/settings.json.tmp"
+      fi
+    fi
   fi
 
   # Cursor — rename .mdc files
   if [[ -f "${HOME}/.cursor/rules/000-profile.mdc" ]]; then
-    for f in "${HOME}/.cursor/rules/000-profile.mdc" "${HOME}/.cursor/rules/"9*.mdc; do
-      [[ -f "$f" ]] && mv "$f" "${f}.disabled"
+    mv "${HOME}/.cursor/rules/000-profile.mdc" "${HOME}/.cursor/rules/000-profile.mdc.disabled"
+    for rule in "${RULE_NAMES[@]}"; do
+      [[ -f "${HOME}/.cursor/rules/9${rule}.mdc" ]] && mv "${HOME}/.cursor/rules/9${rule}.mdc" "${HOME}/.cursor/rules/9${rule}.mdc.disabled"
     done
     echo -e "  ${GREEN}✓${NC} Cursor — disabled"
   fi
 
-  # Windsurf
-  for rule in "${RULE_NAMES[@]}"; do
-    [[ -f "${HOME}/.windsurf/rules/${rule}.md" ]] && mv "${HOME}/.windsurf/rules/${rule}.md" "${HOME}/.windsurf/rules/${rule}.md.disabled"
+  # Combined single-file agents. Renaming the file would take the user's own
+  # content with it, so stash the managed block and strip it instead.
+  local file
+  for file in "${COMBINED_FILES[@]}"; do
+    [[ -f "$file" ]] || continue
+    grep -qF "$CS_BEGIN" "$file" 2>/dev/null || continue
+    awk -v b="$CS_BEGIN" -v e="$CS_END" '
+      $0 == b { skip = 1 } skip { print } $0 == e { skip = 0 }
+    ' "$file" > "${file}.contextsect-disabled"
+    strip_managed_block "$file" >/dev/null
+    echo -e "  ${GREEN}✓${NC} ${file/#$HOME/~} — disabled"
   done
-  [[ -d "${HOME}/.windsurf/rules" ]] && ls "${HOME}/.windsurf/rules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} Windsurf — disabled"
-
-  # Cline
-  for rule in "${RULE_NAMES[@]}"; do
-    [[ -f "${HOME}/.clinerules/${rule}.md" ]] && mv "${HOME}/.clinerules/${rule}.md" "${HOME}/.clinerules/${rule}.md.disabled"
-  done
-  [[ -d "${HOME}/.clinerules" ]] && ls "${HOME}/.clinerules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} Cline — disabled"
-
-  # RooCode
-  for rule in "${RULE_NAMES[@]}"; do
-    [[ -f "${HOME}/.roo/rules/${rule}.md" ]] && mv "${HOME}/.roo/rules/${rule}.md" "${HOME}/.roo/rules/${rule}.md.disabled"
-  done
-  [[ -d "${HOME}/.roo/rules" ]] && ls "${HOME}/.roo/rules/"*.disabled &>/dev/null 2>&1 && echo -e "  ${GREEN}✓${NC} RooCode — disabled"
-
-  # Single-file agents — rename
-  [[ -f "${HOME}/opencode.md" ]] && grep -q "ContextSect" "${HOME}/opencode.md" 2>/dev/null && mv "${HOME}/opencode.md" "${HOME}/opencode.md.disabled" && echo -e "  ${GREEN}✓${NC} OpenCode — disabled"
-  [[ -f "${HOME}/.aider.conventions.md" ]] && grep -q "ContextSect" "${HOME}/.aider.conventions.md" 2>/dev/null && mv "${HOME}/.aider.conventions.md" "${HOME}/.aider.conventions.md.disabled" && echo -e "  ${GREEN}✓${NC} Aider — disabled"
-  [[ -f "${HOME}/.github/copilot-instructions.md" ]] && grep -q "ContextSect" "${HOME}/.github/copilot-instructions.md" 2>/dev/null && mv "${HOME}/.github/copilot-instructions.md" "${HOME}/.github/copilot-instructions.md.disabled" && echo -e "  ${GREEN}✓${NC} GitHub Copilot — disabled"
-  [[ -f "${HOME}/AGENTS.md" ]] && grep -q "ContextSect" "${HOME}/AGENTS.md" 2>/dev/null && mv "${HOME}/AGENTS.md" "${HOME}/AGENTS.md.disabled" && echo -e "  ${GREEN}✓${NC} Codex — disabled"
 
   touch "$STATE_FILE"
   echo ""
@@ -469,18 +518,30 @@ cmd_enable() {
   echo ""
 
   # Kiro
+  local rule
   if [[ -f "${HOME}/.kiro/steering/000-profile.md.disabled" ]]; then
     mv "${HOME}/.kiro/steering/000-profile.md.disabled" "${HOME}/.kiro/steering/000-profile.md"
     for rule in "${RULE_NAMES[@]}"; do
       [[ -f "${HOME}/.kiro/steering/${rule}.md.disabled" ]] && mv "${HOME}/.kiro/steering/${rule}.md.disabled" "${HOME}/.kiro/steering/${rule}.md"
+      [[ -f "${HOME}/.kiro/skills/${rule}/SKILL.md.disabled" ]] && mv "${HOME}/.kiro/skills/${rule}/SKILL.md.disabled" "${HOME}/.kiro/skills/${rule}/SKILL.md"
     done
+    [[ -f "${HOME}/.kiro/hooks/token-optimization.json.disabled" ]] && mv "${HOME}/.kiro/hooks/token-optimization.json.disabled" "${HOME}/.kiro/hooks/token-optimization.json"
     echo -e "  ${GREEN}✓${NC} Kiro — enabled"
   fi
 
-  # Claude Code
-  if [[ -f "${HOME}/.claude/CLAUDE.md.disabled" ]]; then
-    mv "${HOME}/.claude/CLAUDE.md.disabled" "${HOME}/.claude/CLAUDE.md"
-    echo -e "  ${GREEN}✓${NC} Claude Code — enabled"
+  # Claude Code — managed skills and hooks
+  for rule in "${RULE_NAMES[@]}"; do
+    [[ -f "${HOME}/.claude/skills/${rule}/SKILL.md.disabled" ]] && mv "${HOME}/.claude/skills/${rule}/SKILL.md.disabled" "${HOME}/.claude/skills/${rule}/SKILL.md"
+  done
+  if command -v jq &>/dev/null && [[ -f "${HOME}/.claude/settings.json" ]]; then
+    if jq -e '.contextsectHooksDisabled' "${HOME}/.claude/settings.json" &>/dev/null; then
+      if jq '.hooks = .contextsectHooksDisabled | del(.contextsectHooksDisabled)' "${HOME}/.claude/settings.json" > "${HOME}/.claude/settings.json.tmp" 2>/dev/null; then
+        mv "${HOME}/.claude/settings.json.tmp" "${HOME}/.claude/settings.json"
+        echo -e "  ${GREEN}✓${NC} Claude Code hooks — enabled"
+      else
+        rm -f "${HOME}/.claude/settings.json.tmp"
+      fi
+    fi
   fi
 
   # Cursor
@@ -491,35 +552,35 @@ cmd_enable() {
     echo -e "  ${GREEN}✓${NC} Cursor — enabled"
   fi
 
-  # Windsurf
-  if ls "${HOME}/.windsurf/rules/"*.disabled &>/dev/null 2>&1; then
-    for f in "${HOME}/.windsurf/rules/"*.disabled; do
-      mv "$f" "${f%.disabled}"
-    done
-    echo -e "  ${GREEN}✓${NC} Windsurf — enabled"
-  fi
+  # Combined single-file agents — put the stashed managed block back on top,
+  # keeping whatever the user has written below it.
+  local file stash preserved
+  for file in "${COMBINED_FILES[@]}"; do
+    stash="${file}.contextsect-disabled"
+    [[ -f "$stash" ]] || continue
+    preserved=""
+    [[ -f "$file" ]] && preserved="$(cat "$file")"
+    mkdir -p "$(dirname "$file")"
+    {
+      cat "$stash"
+      if [[ -n "${preserved//[[:space:]]/}" ]]; then
+        echo ""
+        printf '%s\n' "$preserved"
+      fi
+    } > "${file}.tmp"
+    mv "${file}.tmp" "$file"
+    rm -f "$stash"
+    echo -e "  ${GREEN}✓${NC} ${file/#$HOME/~} — enabled"
+  done
 
-  # Cline
-  if ls "${HOME}/.clinerules/"*.disabled &>/dev/null 2>&1; then
-    for f in "${HOME}/.clinerules/"*.disabled; do
-      mv "$f" "${f%.disabled}"
+  # Legacy per-rule renames from versions before consolidation
+  local dir
+  for dir in "${HOME}/.windsurf/rules" "${HOME}/.clinerules" "${HOME}/.roo/rules"; do
+    [[ -d "$dir" ]] || continue
+    for rule in "${RULE_NAMES[@]}"; do
+      [[ -f "${dir}/${rule}.md.disabled" ]] && mv "${dir}/${rule}.md.disabled" "${dir}/${rule}.md"
     done
-    echo -e "  ${GREEN}✓${NC} Cline — enabled"
-  fi
-
-  # RooCode
-  if ls "${HOME}/.roo/rules/"*.disabled &>/dev/null 2>&1; then
-    for f in "${HOME}/.roo/rules/"*.disabled; do
-      mv "$f" "${f%.disabled}"
-    done
-    echo -e "  ${GREEN}✓${NC} RooCode — enabled"
-  fi
-
-  # Single-file agents
-  [[ -f "${HOME}/opencode.md.disabled" ]] && mv "${HOME}/opencode.md.disabled" "${HOME}/opencode.md" && echo -e "  ${GREEN}✓${NC} OpenCode — enabled"
-  [[ -f "${HOME}/.aider.conventions.md.disabled" ]] && mv "${HOME}/.aider.conventions.md.disabled" "${HOME}/.aider.conventions.md" && echo -e "  ${GREEN}✓${NC} Aider — enabled"
-  [[ -f "${HOME}/.github/copilot-instructions.md.disabled" ]] && mv "${HOME}/.github/copilot-instructions.md.disabled" "${HOME}/.github/copilot-instructions.md" && echo -e "  ${GREEN}✓${NC} GitHub Copilot — enabled"
-  [[ -f "${HOME}/AGENTS.md.disabled" ]] && mv "${HOME}/AGENTS.md.disabled" "${HOME}/AGENTS.md" && echo -e "  ${GREEN}✓${NC} Codex — enabled"
+  done
 
   rm -f "$STATE_FILE"
   echo ""
@@ -546,11 +607,17 @@ cmd_companions() {
   echo ""
   echo -e "  ${BLUE}Layer 3: API Payload Compression (60-94% savings)${NC}"
   echo -e "    Headroom:    pip install headroom-ai && headroom wrap claude"
-  echo -e "    ${YELLOW}→ https://github.com/chopratejas/headroom${NC}"
+  echo -e "    ${YELLOW}→ https://github.com/headroomlabs-ai/headroom${NC}"
   echo ""
   echo -e "  ${BLUE}Layer 4: Codebase Knowledge Graph (49-71x reduction)${NC}"
   echo -e "    Graphify:    pip install graphifyy && graphify index ."
   echo -e "    ${YELLOW}→ https://github.com/safishamsi/graphify${NC}"
+  echo -e "    KiroGraph:   kirograph install   ${CYAN}(also bundles layers 2-3)${NC}"
+  echo -e "    ${YELLOW}→ https://github.com/davide-desio-eleva/kirograph${NC}"
+  echo ""
+  echo -e "  ${BLUE}Layer 5: MCP Schema Gateway${NC}"
+  echo -e "    mux:         npx mux-mcp-gateway"
+  echo -e "    ${YELLOW}→ https://github.com/BhavanPatel/mux${NC}"
   echo ""
   echo -e "  ${GREEN}Full guide: docs/companion-stack.md${NC}"
   echo ""
@@ -563,7 +630,7 @@ case "${1:-help}" in
   status)     cmd_status ;;
   disable)    cmd_disable ;;
   enable)     cmd_enable ;;
-  uninstall)  cmd_uninstall ;;
+  uninstall)  shift; cmd_uninstall "$@" ;;
   companions) cmd_companions ;;
   version|-v|--version) echo "contextsect ${VERSION}" ;;
   help|-h|--help) usage ;;

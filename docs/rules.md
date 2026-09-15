@@ -98,3 +98,50 @@ flowchart TD
 ```
 
 **Why:** The "Lost in the Middle" paper shows models pay most attention to beginning and end of context. Loading everything fills the middle with noise that DEGRADES quality. Less context = better reasoning.
+
+
+---
+
+## Activation Tiers
+
+There are 14 rules, but they are not all always-loaded. Each is assigned a tier based on when it actually needs to act. Full rationale in [tiering.md](tiering.md).
+
+| Tier | Rules | Cost when idle |
+|---|---|---|
+| **steering** (2) | `output-contract`, `cache-stability` | full, but cache-warm |
+| **hook** (6) | `alignment-gate`, `loop-breaker`, `search-first`, `shell-output-hygiene`, `context-budget`, `diff-only` | zero until the event fires |
+| **skill** (6) | `plan-before-act`, `investigation-mode`, `context-hygiene`, `tool-selection`, `subagent-isolation`, `session-handover` | description only |
+
+On Kiro this cuts always-on content from 14 rules to 2 — measured at ~4,300 words down to ~700.
+
+## The Three Newer Rules
+
+### 12. Cache Stability (`rules/cache-stability.md`)
+**Purpose:** Keep the prompt prefix byte-stable so provider prompt caching stays warm.
+- Cache reads cost roughly 10% of normal input price, but matching is byte-exact
+- Stable content first, volatile content last; never inject timestamps early
+- Do not re-summarise history mid-session — rewriting the prefix drops the cache
+- **Tier:** steering. Stability dominates size: a larger stable prefix beats a smaller volatile one
+
+### 13. Subagent Isolation (`rules/subagent-isolation.md`)
+**Purpose:** Keep exploration out of the main context.
+- Delegate read-heavy work with an unknown target; ask for a conclusion, not a transcript
+- Treat subagent output as your own file reads — do not re-read what it reported
+- **Tier:** skill. The saving is that raw material never enters the main window
+
+### 14. Session Handover (`rules/session-handover.md`)
+**Purpose:** Survive compaction by keeping state on disk instead of in context.
+- Record decisions **and their reasons** — reasons are what compaction destroys first
+- Reference code by `path:line`; never paste file contents
+- Update as work progresses, not once at the end
+- **Tier:** skill. Compaction is lossy and usually not configurable, so a fresh session plus a handover file beats a long session
+
+## Adding a Rule
+
+1. Add `rules/<name>.md` as plain, agent-agnostic markdown
+2. Register it in `get_rule_tier()` and `get_rule_description()` in `install.sh`
+3. If it is `hook` tier, add an entry to the relevant `adapters/*-hooks.json`
+
+Unregistered rules default to `steering` — over-charged rather than silently skipped.
+
+For `skill` tier the description **is** the activation trigger, so write it as a trigger condition ("Use when…", "Use before…"), not a summary. A vague description means the skill never fires, which silently drops the rule.

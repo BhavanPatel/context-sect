@@ -72,7 +72,7 @@ Choose ONE of:
 ### Layer 3: API-Level Compression
 
 #### Headroom
-- **Repo:** [github.com/chopratejas/headroom](https://github.com/bsmr/chopratejas---headroom)
+- **Repo:** [github.com/headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom)
 - **What:** Local proxy that compresses context payloads before they hit the LLM API
 - **Savings:** 60-94% on input tokens
 - **Install:** `pip install headroom-ai` then `headroom wrap claude`
@@ -147,3 +147,46 @@ They complement. ContextSect tells the agent to use `--quiet` flags proactively.
 
 **Q: I already use Caveman. Should I switch to ContextSect?**
 ContextSect's `output-contract` rule does everything Caveman does (compressed prose) plus it knows when NOT to compress (security warnings, multi-step instructions). You can safely replace Caveman with ContextSect. You don't need both.
+
+
+---
+
+## Consolidation Update (Sept 2026)
+
+The layered model above still holds conceptually, but the tooling has consolidated. Two things worth knowing before installing four separate tools.
+
+### KiroGraph now bundles layers 2–4
+
+[KiroGraph](https://github.com/davide-desio-eleva/kirograph) is a single MCP server that absorbs most of this stack. Its own credits list rtk (shell compression), caveman (prose compression), headroom (on-demand compression and the CCR cached-content-retrieval pattern), lean-ctx (file-read caching and budget governance) and CodeGraph (the semantic graph).
+
+If you are starting fresh, one install may replace three:
+
+| Capability | Replaces |
+|---|---|
+| Shell compression module | RTK |
+| Caveman mode | caveman |
+| `kirograph_compress` / `kirograph_retrieve` | headroom |
+| Semantic graph + tree-sitter index across many languages | Graphify / CodeGraph |
+| File read cache returning a small marker for unchanged files | lean-ctx |
+
+It also implements **KV cache prefix stability via deterministic markers** — the same insight behind ContextSect's `cache-stability` rule, reached independently at the tool layer rather than the behavioural layer.
+
+### Layer 5: MCP schema gateway
+
+A layer missing from the original model. Every enabled MCP tool contributes its schema to context on every call. KiroGraph publishes its own figure: 126 tools at roughly 6,240 tokens with all flags enabled.
+
+[mux](https://github.com/BhavanPatel/mux) ([npm](https://www.npmjs.com/package/mux-mcp-gateway)) routes to downstream MCP servers and resolves tools from cached metadata, so every schema is not resident at once. This is the plumbing counterpart to the `tool-selection` rule, which can only advise the model to choose fewer tools — it cannot reduce schemas already in the prompt.
+
+### Revised stack
+
+| Layer | Tool | What it does |
+|---|---|---|
+| 1. Behavioural rules | **ContextSect** | Teaches the agent to search, plan, tier, and keep the prefix stable |
+| 2–4. Compression + graph | **KiroGraph** (or RTK + headroom + Graphify separately) | Filters shell output, compresses payloads, pre-indexes the repo |
+| 5. MCP schema gateway | **mux** | Keeps tool schemas out of context until needed |
+
+ContextSect remains the only behavioural layer. KiroGraph's Watchmen module even *generates* steering and skill files, so the two are complementary rather than competing.
+
+### Corrected link
+
+Headroom is now at [github.com/headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom). Earlier docs and `install.sh` pointed at the old `chopratejas/headroom` path.

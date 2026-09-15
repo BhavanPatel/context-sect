@@ -49,3 +49,29 @@ Tokenizers split abbreviated words to same token count as full words. Zero savin
 | **Forced single-task sessions** | Session overhead = 3,000–5,000 tokens. Repeated per task. | Kiro/Claude session architecture |
 | **Compressing security warnings** | Misunderstood destructive confirmations → data loss | GitHub incident docs |
 | **Loading all rules simultaneously** | Each rule = 300–400 tokens. 20 rules = 8,000 tokens competing for attention | SkillReducer: attention dilution |
+
+
+---
+
+## 2026 Additions
+
+Sources added alongside the activation-tier and cache-stability work. Content paraphrased for licensing compliance.
+
+| Finding | Source | What it changed here |
+|---|---|---|
+| Prompt caching cuts input cost substantially; matching is byte-exact prefix comparison, so any early change invalidates the rest | [Anthropic prompt caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) | Created `cache-stability`; removed the timestamp from the profile header |
+| Cache reads bill at roughly 10% of base input tokens; a poorly organised prompt achieves a far lower hit rate on identical workloads | [trigger.dev](https://trigger.dev/docs/ai-chat/prompt-caching), [derivai](https://derivai.substack.com/p/prompt-caching-production-ai-agent-costs) | Established that prefix stability matters more than prefix size |
+| Skill names and descriptions load every session; a large catalog consumes meaningful context before any work begins | [HackerNoon on semantic routers](https://hackernoon.com/how-semantic-routers-cut-claude-code-skill-tokens-by-456x) | Capped the skill tier at 6; stopped generating a skill per rule |
+| A SKILL.md can load even when the skill never fires; three-layer progressive disclosure cut always-on skill cost | [cc-safe-setup gist](https://gist.github.com/yurukusa/5ac4a78225d81caf7f72bd520208cf74) | Skill bodies kept lean; descriptions written as trigger conditions |
+| 60–70% token reduction from context-window management in multi-agent workflows | [arXiv 2608.17188](https://arxiv.org/abs/2608.17188) | Supports `subagent-isolation` |
+| 63.9% token reduction for long-horizon tool-using agents | [arXiv 2606.10209](https://arxiv.org/pdf/2606.10209) | Supports tiering and progressive loading |
+| Performance degrades as context length grows across many models, more steeply when query and context are semantically distant | Chroma context-rot research, via [claude-code-insights](https://github.com/dianyike/claude-code-insights/blob/main/subagent-best-practices.md) | Reinforces `context-budget` and `session-handover` |
+| Hooks make enforcement deterministic where a prompt makes it probabilistic | [Claude Code hooks guide](https://hidekazu-konishi.com/entry/claude_code_hooks_complete_guide.html), [Cloudflare on standards enforcement](https://blog.cloudflare.com/engineering-standards-enforcement/) | Core justification for the hook tier |
+| Knowledge-compounding wiki pattern rather than accumulating context | [Karpathy's LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Informed `session-handover` |
+| AGENTS.md is Linux Foundation-stewarded and read by many tools; SKILL.md is portable across agents | [agentsmd.kurkalabs.dev](https://agentsmd.kurkalabs.dev/), [ssojet](https://ssojet.com/blog/skill-md-playbooks) | Consolidated the six single-file adapters; canonical `~/AGENTS.md` |
+
+### Design decisions these produced
+
+- **Cache stability is a rule, not just an install detail.** Existing tools implement prefix stability at the plumbing layer — KiroGraph does it via deterministic markers, crediting headroom — but not as a behavioural rule.
+- **Hooks are the third activation option.** Steering-vs-skill is a false binary: hooks are conditionally always-on and cannot be forgotten by the model.
+- **Skills are not free.** Their catalog cost is why the skill tier is capped rather than used as a dumping ground for everything not in steering.

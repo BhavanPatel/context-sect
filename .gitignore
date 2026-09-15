@@ -10,3 +10,6 @@ website/*.tsbuildinfo
 
 # kiro
 .kiro
+
+#deck
+.deck
