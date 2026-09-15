@@ -12,7 +12,7 @@
       "enabled": true
     },
     {
-      "name": "loop-detector",
+      "name": "loop-breaker",
       "description": "Monitors for runaway execution loops.",
       "trigger": "PreToolUse",
       "matcher": ".*",
@@ -23,7 +23,7 @@
       "enabled": true
     },
     {
-      "name": "search-before-read",
+      "name": "search-first",
       "description": "Enforces targeted search before full file reads.",
       "trigger": "PreToolUse",
       "matcher": "read|file_read|fs_read|cat",
@@ -34,7 +34,7 @@
       "enabled": true
     },
     {
-      "name": "diff-only-output",
+      "name": "diff-only",
       "description": "Enforces SEARCH/REPLACE format for modifications.",
       "trigger": "PreToolUse",
       "matcher": "str_replace|fs_write|write_file|file_write",
@@ -56,7 +56,7 @@
       "enabled": true
     },
     {
-      "name": "context-budget-guard",
+      "name": "context-budget",
       "description": "Prevents context overload by tracking file read volume.",
       "trigger": "PreToolUse",
       "matcher": "read_file|read_files|fs_read|file_read",
