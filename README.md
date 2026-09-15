@@ -32,7 +32,7 @@ Every AI coding tool has its own config format — `CLAUDE.md`, `.cursorrules`, 
 
 ## The Solution
 
-ContextSect installs **11 universal rules** that optimize token usage across two pillars:
+ContextSect installs **14 universal rules** that optimize token usage across two pillars:
 
 | Pillar | What it does | Savings |
 |--------|---|---|
@@ -88,7 +88,7 @@ contextsect uninstall           # Remove all rules
 | 3 | Rules are transformed into each agent's native config format |
 | 4 | Agent loads rules at session start, optimizes automatically |
 
-Your agents see **11 rules** that prevent token waste at every stage — from prompt alignment to output compression.
+Your agents see **14 rules** that prevent token waste at every stage — from prompt alignment to output compression. Only rules that apply every turn are always-loaded; the rest are event-triggered hooks or on-demand skills.
 
 ---
 
@@ -98,7 +98,7 @@ Your agents see **11 rules** that prevent token waste at every stage — from pr
 |:--|:--|
 | <a href="docs/install.md"><img src="https://img.shields.io/badge/Install-a78bfa?style=flat-square&logo=gnubash&logoColor=white" alt="Install"></a> | [Installation flow, CLI flags, manual selection, updating](docs/install.md) |
 | <a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-a78bfa?style=flat-square&logo=blueprint&logoColor=white" alt="Architecture"></a> | [Two-pillar design, token economics, system flow diagram](docs/architecture.md) |
-| <a href="docs/rules.md"><img src="https://img.shields.io/badge/Rules-a78bfa?style=flat-square&logo=checkmarx&logoColor=white" alt="Rules"></a> | [All 11 rules with savings, synergies, implementation priority](docs/rules.md) |
+| <a href="docs/rules.md"><img src="https://img.shields.io/badge/Rules-a78bfa?style=flat-square&logo=checkmarx&logoColor=white" alt="Rules"></a> | [All 14 rules, activation tiers, savings, synergies](docs/rules.md) |
 | <a href="docs/companion-stack.md"><img src="https://img.shields.io/badge/Companion_Stack-a78bfa?style=flat-square&logo=stackblitz&logoColor=white" alt="Companion Stack"></a> | [Layer with RTK, Headroom, Graphify for maximum savings](docs/companion-stack.md) |
 | <a href="docs/profiles.md"><img src="https://img.shields.io/badge/Profiles-a78bfa?style=flat-square&logo=slideshare&logoColor=white" alt="Profiles"></a> | [4 intensity levels, per-agent config, mid-session switching](docs/profiles.md) |
 | <a href="docs/agents.md"><img src="https://img.shields.io/badge/Agents-a78bfa?style=flat-square&logo=dependabot&logoColor=white" alt="Agents"></a> | [10 supported agents, detection logic, config formats](docs/agents.md) |
@@ -117,8 +117,9 @@ ContextSect is the **behavioral layer** — but token optimization has 4 layers.
 |-------|------|---|---|
 | 1. Behavioral Rules | **ContextSect** (this) | Teaches agents to search, plan, use compact commands | 40-75% |
 | 2. CLI Compression | [RTK](https://github.com/rtk-ai/rtk) or [Token Juice](https://github.com/vincentkoc/tokenjuice) | Filters shell output before it enters context | 60-90% |
-| 3. API Proxy | [Headroom](https://github.com/bsmr/chopratejas---headroom) | Compresses API payloads in transit | 60-94% |
-| 4. Knowledge Graph | [Graphify](https://github.com/safishamsi/graphify) | Pre-indexes repo for O(1) navigation | 49-71x |
+| 3. API Proxy | [Headroom](https://github.com/headroomlabs-ai/headroom) | Compresses API payloads in transit | 60-94% |
+| 4. Knowledge Graph | [Graphify](https://github.com/safishamsi/graphify) or [KiroGraph](https://github.com/davide-desio-eleva/kirograph) | Pre-indexes repo for O(1) navigation | 49-71x |
+| 5. MCP Gateway | [mux](https://github.com/BhavanPatel/mux) | Lazy-loads MCP tool schemas instead of sending every schema on every call | varies |
 
 ```bash
 # Recommended stack (ContextSect + RTK)
